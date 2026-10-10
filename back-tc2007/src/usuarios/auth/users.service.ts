@@ -14,12 +14,6 @@ import { UsersRepository } from './users.repository';
 import * as nodemailer from 'nodemailer';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 
-/**
- * Para generar un salt aleatorio de 16 bytes y codificarlo en base64.
- */
-export function hash(password: string): string {
-  return createHash('sha256').update(password).digest('hex');
-}
 
 /** Vida del access token: 15 minutos (en segundos). */
 const ACCESS_TTL = 15 * 60;
