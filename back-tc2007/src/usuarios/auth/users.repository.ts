@@ -118,6 +118,43 @@ export class UsersRepository {
     return result.affectedRows > 0;
   }
 
+    /** Pendiente (4) → Usuario (1). */
+  async rejectAdmin(id: string): Promise<boolean> {
+    const [result] = await this.pool.query<ResultSetHeader>(
+      `UPDATE usuario SET rol_id = 1
+       WHERE id = ? AND rol_id = 4 AND deleted_at IS NULL`,
+      [id],
+    );
+    return result.affectedRows > 0;
+  }
+
+  /** Admin (2) o Super admin (3) → Usuario (1). */
+  async revokeAdmin(id: string): Promise<boolean> {
+    const [result] = await this.pool.query<ResultSetHeader>(
+      `UPDATE usuario SET rol_id = 1
+       WHERE id = ? AND rol_id IN (2, 3) AND deleted_at IS NULL`,
+      [id],
+    );
+    return result.affectedRows > 0;
+  }
+
+  /** Rol actual de un usuario activo, o `undefined` si no existe. */
+  async findRolId(id: string): Promise<number | undefined> {
+    const [rows] = await this.pool.query<RowDataPacket[]>(
+      `SELECT rol_id FROM usuario WHERE id = ? AND deleted_at IS NULL`,
+      [id],
+    );
+    return rows[0]?.rol_id;
+  }
+
+  /** Número de super admins activos. */
+  async countSuperAdmins(): Promise<number> {
+    const [rows] = await this.pool.query<RowDataPacket[]>(
+      `SELECT COUNT(*) AS total FROM usuario WHERE rol_id = 3 AND deleted_at IS NULL`,
+    );
+    return Number(rows[0].total);
+  }
+
   /**
    * Busca un usuario activo por id. Hoy solo se usa internamente para
    * releer la fila recién insertada en {@link save} y {@link saveAdmin}.

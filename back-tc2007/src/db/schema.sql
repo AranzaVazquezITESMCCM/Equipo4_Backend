@@ -47,7 +47,11 @@ CREATE TABLE reporte (
     descripcion TEXT NOT NULL,
     longitud DECIMAL(11, 8) NOT NULL,
     latitud DECIMAL(10, 8) NOT NULL,
-    foto VARCHAR(255) NOT NULL,
+    portada VARCHAR(255) NOT NULL,
+    evidencia VARCHAR(255) NOT NULL,
+    precio DECIMAL(10, 2) NULL DEFAULT NULL,
+    zona VARCHAR(150) NULL DEFAULT NULL,
+    contacto_ofertante VARCHAR(150) NULL DEFAULT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP NULL DEFAULT NULL,
@@ -78,9 +82,13 @@ CREATE TABLE recovery_code (
     FOREIGN KEY (usuario_id) REFERENCES usuario(id)
 );
 
-INSERT INTO rol (nombre, alias) VALUES
-('Usuario', 'user'),
-('Administrador', 'admin');
+ALTER TABLE recovery_code MODIFY COLUMN id VARCHAR(36) NOT NULL;
+
+INSERT INTO rol (id, nombre, alias) VALUES
+(1, 'Usuario', 'user'),
+(2, 'Administrador', 'admin'),
+(3, 'Super Administrador', 'super_admin'),
+(4, 'Administrador Pendiente', 'pending');
 
 INSERT INTO fuente (tipo_fuente, valor_fuente) VALUES
 ('Plataforma', 'Airbnb'),
@@ -95,6 +103,7 @@ INSERT INTO estado (nombre) VALUES
 ('En revisión'),
 ('Fraude confirmado'),
 ('No es fraude');
+
 
 INSERT INTO tipo_propiedad (nombre) VALUES
 ('Departamento'),
@@ -112,8 +121,69 @@ INSERT INTO tipo_fraude (nombre) VALUES
 ('Doble reservación'),
 ('Solicitud de depósito fraudulento');
 
-ALTER TABLE recovery_code MODIFY COLUMN id VARCHAR(36) NOT NULL;
+-- ============================================
+-- DATOS DE PRUEBA
+-- ============================================
 
+-- USUARIOS DE PRUEBA (contraseña de todos: Contrasena#2026)
+INSERT INTO usuario (
+    id,
+    correo,
+    contrasena,
+    salt,
+    nombre,
+    rol_id
+) VALUES
+(
+    '11111111-1111-1111-1111-111111111111',
+    'usuario1@test.com',
+    '$2b$10$bzMU1DjzfwhJV4isfve.futvVda2oam2sIcDjMSHvh9IFyMDiq5fy',
+    'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90',
+    'Usuario Prueba 1',
+    1
+),
+(
+    '22222222-2222-2222-2222-222222222222',
+    'usuario2@test.com',
+    '$2b$10$bzMU1DjzfwhJV4isfve.futvVda2oam2sIcDjMSHvh9IFyMDiq5fy',
+    'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90',
+    'Usuario Prueba 2',
+    1
+),
+(
+    '33333333-3333-3333-3333-333333333333',
+    'admin@test.com',
+    '$2b$10$bzMU1DjzfwhJV4isfve.futvVda2oam2sIcDjMSHvh9IFyMDiq5fy',
+    'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90',
+    'Administrador Prueba',
+    2
+),
+(
+    '44444444-4444-4444-4444-444444444444',
+    'superadmin@test.com',
+    '$2b$10$bzMU1DjzfwhJV4isfve.futvVda2oam2sIcDjMSHvh9IFyMDiq5fy',
+    'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90',
+    'Super Administrador Prueba',
+    3
+);
+
+-- REPORTES DE PRUEBA
+INSERT INTO reporte (
+    nombre,
+    descripcion,
+    longitud,
+    latitud,
+    portada,
+    evidencia,
+    precio,
+    zona,
+    contacto_ofertante,
+    usuario_id,
+    fuente_id,
+    estado_id,
+    tipo_propiedad_id,
+    tipo_fraude_id
+) VALUES
 
 -- Reporte 1
 (
@@ -222,5 +292,3 @@ ALTER TABLE recovery_code MODIFY COLUMN id VARCHAR(36) NOT NULL;
     1,
     5
 );
-
-

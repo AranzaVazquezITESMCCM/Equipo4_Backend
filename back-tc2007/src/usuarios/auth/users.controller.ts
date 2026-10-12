@@ -8,6 +8,8 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
+import { CurrentUser } from './current-user.decorator';
+import type { JwtPayload } from './jwt';
 import { AuthGuard } from './auth.guard';
 import { SuperAdminGuard } from './super-admin.guard';
 import { AuthService } from './users.service';
@@ -86,6 +88,32 @@ export class AuthController {
   approveAdmin(@Param('id') id: string) {
     return this.service.approveAdmin(id);
   }
+
+    /** Rechaza una solicitud pendiente: el usuario pasa de Pendiente (4) a Usuario (1). */
+  @ApiOperation({ summary: 'Rechazar una solicitud de administrador' })
+  @ApiBearerAuth('access-token')
+  @ApiParam({ name: 'id', description: 'ID del usuario pendiente' })
+  @ApiOkResponse({ description: 'Solicitud rechazada.' })
+  @Patch('admins/:id/reject')
+  @UseGuards(AuthGuard, SuperAdminGuard)
+  rejectAdmin(@Param('id') id: string) {
+    return this.service.rejectAdmin(id);
+  }
+
+  /**
+   * Quita el acceso a un administrador o super admin: pasa a Usuario (1).
+   * No permite quitarse el rol a sí mismo ni dejar el sistema sin super admins.
+   */
+  @ApiOperation({ summary: 'Quitar acceso a un administrador' })
+  @ApiBearerAuth('access-token')
+  @ApiParam({ name: 'id', description: 'ID del administrador' })
+  @ApiOkResponse({ description: 'Acceso retirado.' })
+  @Patch('admins/:id/revoke')
+  @UseGuards(AuthGuard, SuperAdminGuard)
+  revokeAdmin(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.service.revokeAdmin(id, user.sub);
+  }
+
 
   /**
    * Inicio de sesión de usuario final. Responde `200` (en lugar del

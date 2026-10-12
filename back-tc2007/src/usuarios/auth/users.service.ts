@@ -3,9 +3,10 @@ import {
   Injectable,
   NotFoundException,
   UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import { generateSalt, hashPassword, verifyPassword } from '../../common/password.util';
-import { createHash, randomInt } from 'node:crypto';
+import { randomInt } from 'node:crypto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -13,7 +14,7 @@ import { sign, verify } from './jwt';
 import { UsersRepository } from './users.repository';
 import * as nodemailer from 'nodemailer';
 import * as bcrypt from 'bcrypt';
-import { randomBytes } from 'crypto';
+
 
 
 
@@ -215,6 +216,30 @@ export class AuthService {
       message: 'Administrador aprobado correctamente'
     };
   }
+
+    async rejectAdmin(id: string) {
+    const rejected = await this.users.rejectAdmin(id);
+    if (!rejected) {
+      throw new NotFoundException('No se encontró una solicitud pendiente');
+    }
+    return { message: 'Solicitud rechazada' };
+  }
+
+  async revokeAdmin(id: string, solicitanteId: string) {
+    if (id === solicitanteId) {
+      throw new BadRequestException('No puedes quitarte el acceso a ti mismo');
+    }
+    const rolId = await this.users.findRolId(id);
+    if (rolId !== 2 && rolId !== 3) {
+      throw new NotFoundException('No se encontró un administrador con ese id');
+    }
+    if (rolId === 3 && (await this.users.countSuperAdmins()) <= 1) {
+      throw new BadRequestException('No se puede quitar el acceso al último super administrador');
+    }
+    await this.users.revokeAdmin(id);
+    return { message: 'Acceso retirado correctamente' };
+  }
+
 
   /**
    * Emite un nuevo access token a partir de un refresh token válido.
