@@ -37,6 +37,9 @@ import { CreateReporteDto } from './dto/create-reporte.dto';
 import { UpdateReporteDto } from './dto/update-reporte.dto';
 import { FOTOS_TMP_DIR } from './uploads.paths';
 import { AdminGuard } from 'src/usuarios/auth/admin.guard';
+import { UsuariosService } from '../usuarios/usuarios.service';
+import { UsuarioResponseDto } from '../usuarios/dto/usuario-response.dto';
+import { User } from 'src/usuarios/auth/entities/user.entity';
 
 /**
  * CRUD de reportes de fraude (`/reportes`). Requiere Bearer token.
@@ -50,7 +53,7 @@ import { AdminGuard } from 'src/usuarios/auth/admin.guard';
 @Controller('reportes')
 @UseGuards(AuthGuard)
 export class ReportesController {
-  constructor(private readonly service: ReportesService) {}
+  constructor(private readonly service: ReportesService, private readonly usuariosService: UsuariosService) {}
 
   /**
    * Sube una foto de evidencia a una carpeta temporal, ANTES de crear
@@ -91,8 +94,21 @@ export class ReportesController {
           callback(null, `${randomUUID()}${extname(file.originalname)}`);
         },
       }),
+      limits: {
+        fileSize: 5 * 1024 *1024,
+      },
+      fileFilter: (_req, file, callback) => {
+        const tiposPermitidos = ['image/jpeg', 'image/png', 'image/webp'];
+
+        if (tiposPermitidos.includes(file.mimetype)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Solo se permiten imágenes JPG, PNG o WEBP'), false);
+        }
+      },
     }),
   )
+   
   uploadFotos(
     @UploadedFiles() files: Express.Multer.File[],
   ): FotoTempResponseDto[] {
@@ -138,59 +154,90 @@ export class ReportesController {
     return this.service.findByUsuario(user.sub);
   }
 
-  /** Obtiene un reporte por id. 404 si no existe o está borrado. */
-  @ApiOperation({ summary: 'Obtener un reporte por id' })
-  @ApiParam({ name: 'id', type: Number })
-  @ApiOkResponse({ type: ReporteResponseDto })
-  @Get(':id')
-  findOne(
-    @CurrentUser() user: JwtPayload,
-    @Param('id', ParseIntPipe) id: number,
-  ): Promise<ReporteResponseDto> {
-    return this.service.findOne(id, user);
-  }
-
+  /**
+   * Búsqueda de reportes. Un usuario normal solo recibe reportes con
+   * "Fraude confirmado" (se ignora el estadoId que mande); un admin
+   * puede filtrar por cualquier estado. `q` busca por palabra clave en
+   * nombre, descripción y contacto del ofertante (URL, teléfono, etc.).
+   * Debe declararse antes de `GET /reportes/:id`.
+   */
+  @ApiOperation({ summary: 'Buscar/filtrar reportes' })
+  @ApiOkResponse({ type: ReporteResponseDto, isArray: true })
   @Get('filter')
   filter(
+    @CurrentUser() user: JwtPayload,
+    @Query('q') q?: string,
     @Query('estadoId') estadoId?: string,
     @Query('fuenteId') fuenteId?: string,
     @Query('tipoPropiedadId') tipoPropiedadId?: string,
     @Query('tipoFraudeId') tipoFraudeId?: string,
   ): Promise<ReporteResponseDto[]> {
-    return this.service.filter({
+    return this.service.filter(user, {
+      q: q?.trim() || undefined,
       estadoId: estadoId ? Number(estadoId) : undefined,
       fuenteId: fuenteId ? Number(fuenteId) : undefined,
-      tipoPropiedadId: tipoPropiedadId
-        ? Number(tipoPropiedadId)
-        : undefined,
+      tipoPropiedadId: tipoPropiedadId ? Number(tipoPropiedadId) : undefined,
       tipoFraudeId: tipoFraudeId ? Number(tipoFraudeId) : undefined,
     });
   }
+  
+  /**
+ * Datos del autor de un reporte. Solo admin / super admin.
+ * Devuelve UsuarioResponseDto, que ya excluye contrasena y salt.
+ */
+@ApiOperation({ summary: 'Obtener datos del autor de un reporte (solo admin)' })
+  @ApiParam({ name: 'id', type: String, description: 'UUID del reporte' })
+  @ApiOkResponse({ type: UsuarioResponseDto })
+  @Get(':id/autor')
+  @UseGuards(AdminGuard)
+  async findAutor(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+  ): Promise<UsuarioResponseDto> {
+    const reporte = await this.service.findOne(id, user); // <-- Pasada la variable id
+    return this.usuariosService.findOne(reporte.usuarioId);
+  }
+
+  /** Obtiene un reporte por id. 404 si no existe o está borrado. */
+@ApiOperation({ summary: 'Obtener un reporte por id' })
+  @ApiParam({ name: 'id', type: String, description: 'UUID del reporte' })
+  @ApiOkResponse({ type: ReporteResponseDto })
+  @Get(':id')
+  findOne(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+  ): Promise<ReporteResponseDto> {
+    return this.service.findOne(id, user);
+  }
+
 
   /**
    * Actualiza parcialmente un reporte. Incluir `estadoId` en el body
    * es la forma de mover un reporte de "Pendiente" a otro estado
    * (ej. "En revisión", "Verificado").
    */
-  @ApiOperation({ summary: 'Actualizar un reporte' })
-  @ApiParam({ name: 'id', type: Number })
+@ApiOperation({ summary: 'Actualizar un reporte' })
+  @ApiParam({ name: 'id', type: String, description: 'UUID del reporte' }) // <-- Cambiar type: Number por type: String
   @ApiOkResponse({ type: ReporteResponseDto })
   @Patch(':id')
-  @UseGuards(AdminGuard)
+  @UseGuards(AuthGuard)
   update(
-    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
     @Body() dto: UpdateReporteDto,
   ): Promise<ReporteResponseDto> {
-    return this.service.update(id, dto);
+    return this.service.update(id, dto, user);
   }
 
   /** Borra lógicamente un reporte (`deleted_at = NOW()`). */
-  @ApiOperation({ summary: 'Eliminar un reporte (borrado lógico)' })
-  @ApiParam({ name: 'id', type: Number })
-  @ApiNoContentResponse()
+@ApiOperation({ summary: 'Eliminar un reporte' })
+  @ApiParam({ name: 'id', type: String, description: 'UUID del reporte' })
   @Delete(':id')
-  @HttpCode(204)
-  remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
-    return this.service.remove(id);
+  @UseGuards(AuthGuard)
+  async remove(
+    @Param('id') id: string,
+  ): Promise<{ message: string }> {
+    await this.service.remove(id); // <-- Pasamos solo el 'id'
+    return { message: 'Reporte eliminado correctamente' };
   }
 }

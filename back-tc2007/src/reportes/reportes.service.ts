@@ -1,7 +1,9 @@
 import {
   BadRequestException,
+  Logger,
   Injectable,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { existsSync, renameSync } from 'node:fs';
@@ -20,7 +22,7 @@ import { JwtPayload } from 'src/usuarios/auth/jwt';
  * tipo de propiedad, tipo de fraude) las hace {@link ReportesRepository}.
  */
 /** `rol.id` del Administrador. */
-const ROL_ADMIN = 2;
+const ROLES_ADMIN = [2, 3];
 /**
  * Estados (tabla `estado`, semáforo):
  * 1 = En revisión (amarillo) — estado inicial, solo lo ven su autor y el admin.
@@ -28,13 +30,15 @@ const ROL_ADMIN = 2;
  * 3 = No es fraude (verde) — público.
  */
 const ESTADO_EN_REVISION = 1;
-/** Estados en los que el dueño todavía puede editar/eliminar: solo En revisión. */
-const ESTADOS_EDITABLES = [ESTADO_EN_REVISION];
+const ESTADO_FRAUDE_CONFIRMADO = 2;
+/** Estados en los que un admin puede editar un reporte. */
+const ESTADOS_EDITABLES_ADMIN = [ESTADO_EN_REVISION, ESTADO_FRAUDE_CONFIRMADO];
 
 
 
 @Injectable()
 export class ReportesService {
+  private readonly logger = new Logger(ReportesService.name); 
   constructor(private readonly repository: ReportesRepository) {}
 
   /**
@@ -45,7 +49,7 @@ export class ReportesService {
    * @throws BadRequestException si no se mandó ningún archivo.
    */
   registrarFotoTemporal(files: Express.Multer.File[]): FotoTempResponseDto[] {
-    if (!files || files.length !== 2) {
+    if (!Array.isArray(files) || files.length !== 2) {
       throw new BadRequestException('Debes subir exactamente 2 fotos: una portada y una evidencia');
     }
     return files.map((file) => {
@@ -101,7 +105,7 @@ export class ReportesService {
    */
   async findAll(user: JwtPayload): Promise<ReporteResponseDto[]> {
     const reportes = await this.repository.findAll(
-      user.rolId === ROL_ADMIN ? undefined : ESTADO_EN_REVISION,
+      ROLES_ADMIN.includes(user.rolId) ? undefined : ESTADO_EN_REVISION,
     );
     return reportes.map((r) => ReporteResponseDto.fromEntity(r));
   }
@@ -117,22 +121,29 @@ export class ReportesService {
    * Busca un reporte por id.
    * @throws NotFoundException si no existe o está borrado.
    */
-    async findOne(id: number, user: JwtPayload): Promise<ReporteResponseDto> {
+    async findOne(id: string, user: JwtPayload): Promise<ReporteResponseDto> {
     const reporte = await this.repository.findById(id);
     // Un reporte "En revisión" ajeno se trata como inexistente (404, no 403)
     // para no revelar que existe.
     const esPrivado =
       reporte?.estadoId === ESTADO_EN_REVISION &&
       reporte.usuarioId !== user.sub &&
-      user.rolId !== ROL_ADMIN;
+       !ROLES_ADMIN.includes(user.rolId);
     if (!reporte || esPrivado) {
       throw new NotFoundException(`Reporte ${id} no encontrado`);
     }
     return ReporteResponseDto.fromEntity(reporte);
   }
 
-  async filter(filters: {estadoId?: number; fuenteId?: number; tipoPropiedadId?: number; tipoFraudeId?: number}) {
-    const reportes = await this.repository.filter(filters);
+   async filter(
+    user: JwtPayload,
+    filters: { q?: string; estadoId?: number; fuenteId?: number; tipoPropiedadId?: number; tipoFraudeId?: number },
+  ): Promise<ReporteResponseDto[]> {
+    const esAdmin = ROLES_ADMIN.includes(user.rolId);
+    const reportes = await this.repository.filter({
+      ...filters,
+      estadoId: esAdmin ? filters.estadoId : ESTADO_FRAUDE_CONFIRMADO,
+    });
     return reportes.map((r) => ReporteResponseDto.fromEntity(r));
   }
 
@@ -142,19 +153,34 @@ export class ReportesService {
    * otro estado).
    * @throws NotFoundException si el reporte no existe.
    */
-  async update(
-    id: number,
+async update(
+    id: string,
     changes: UpdateReporteDto,
+    user: JwtPayload,
   ): Promise<ReporteResponseDto> {
     const existe = await this.repository.findById(id);
     if (!existe) {
       throw new NotFoundException(`Reporte ${id} no encontrado`);
     }
-    // `fotoTemp` no es una columna real (ver CreateReporteDto): si viene,
-    // se traduce a `foto` moviendo el archivo de temporales a definitivo,
-    // igual que en `create`.
+
+    // Usar ROLES_ADMIN y user.rolId de la interfaz JwtPayload
+    const esAdmin = ROLES_ADMIN.includes(user.rolId);
+
+    // 1. Validar propiedad: Si NO es el creador Y NO es admin -> 403
+    if (existe.usuarioId !== user.sub && !esAdmin) {
+      throw new ForbiddenException('No tienes permiso para editar este reporte.');
+    }
+
+    // 2. Validar estado editable
+    if (!ESTADOS_EDITABLES_ADMIN.includes(existe.estadoId)) {
+      throw new BadRequestException(
+        'Solo se pueden editar reportes "En revisión" o "Fraude confirmado"',
+      );
+    }
+
     const { fotoTemps, ...resto } = changes;
     const cambios: Partial<UpdateReporteDto> & {portada?: string; evidencia?: string} = resto;
+    
     if (fotoTemps) {
       if (fotoTemps.length !== 2) {
         throw new BadRequestException(
@@ -164,7 +190,11 @@ export class ReportesService {
       cambios.portada = this.moverFotoAPermanente(fotoTemps[0]);
       cambios.evidencia = this.moverFotoAPermanente(fotoTemps[1]);
     }
+
     const actualizado = await this.repository.update(id, cambios as any);
+    this.logger.log(
+      `Reporte ${id} editado por ${user.sub}: ${JSON.stringify(cambios)}`,
+    );
     return ReporteResponseDto.fromEntity(actualizado!);
   }
 
@@ -172,7 +202,7 @@ export class ReportesService {
    * Borra lógicamente un reporte (`deleted_at = NOW()`).
    * @throws NotFoundException si no existe o ya estaba borrado.
    */
-  async remove(id: number): Promise<void> {
+  async remove(id: string): Promise<void> {
     const borrado = await this.repository.softDelete(id);
     if (!borrado) {
       throw new NotFoundException(`Reporte ${id} no encontrado`);
