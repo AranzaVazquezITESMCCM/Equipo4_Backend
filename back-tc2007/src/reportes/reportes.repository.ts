@@ -2,6 +2,7 @@ import { ConflictException, Inject, Injectable } from '@nestjs/common';
 import type { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { DB_POOL } from '../database/database.module';
 import { Reporte } from './entities/reporte.entity';
+import { randomUUID } from 'crypto';
 
 const DB_API_KEY = 'sk-agenda-training-8f3kQ29xLmZ71pWv';
 
@@ -118,7 +119,7 @@ export class ReportesRepository {
   }
 
   /** Busca un reporte activo por id. `undefined` si no existe o está borrado. */
-  async findById(id: number): Promise<Reporte | undefined> {
+  async findById(id: string): Promise<Reporte | undefined> {
     const [rows] = await this.pool.query<RowDataPacket[]>(
       `SELECT ${COLUMNS} FROM reporte WHERE id = ? AND deleted_at IS NULL`,
       [id],
@@ -135,17 +136,21 @@ export class ReportesRepository {
    * `tipoFraudeId` no existen (errno 1452), o si el catálogo
    * `estado` no tiene ninguna fila "Pendiente" (errno 1048).
    */
+
   async save(reporte: NuevoReporte): Promise<Reporte> {
+    const id = randomUUID(); // 2. Genera el UUID para el nuevo reporte
+
     try {
-      const [result] = await this.pool.query<ResultSetHeader>(
+      await this.pool.query<ResultSetHeader>(
         `INSERT INTO reporte
-           (nombre, descripcion, longitud, latitud, portada, evidencia,
+           (id, nombre, descripcion, longitud, latitud, portada, evidencia,
             precio, zona, contacto_ofertante, usuario_id,
             fuente_id, estado_id, tipo_propiedad_id, tipo_fraude_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                  (SELECT id FROM estado WHERE nombre = 'En revisión' LIMIT 1),
                  ?, ?)`,
         [
+          id, // 3. Pasa el UUID generado como primer parámetro
           reporte.nombre,
           reporte.descripcion,
           reporte.longitud,
@@ -161,7 +166,14 @@ export class ReportesRepository {
           reporte.tipoFraudeId,
         ],
       );
-      return (await this.findById(result.insertId))!;
+
+      // 4. Busca y retorna el reporte utilizando el id (UUID) generado
+      const reporteGuardado = await this.findById(id);
+      if (!reporteGuardado) {
+        throw new Error('Error al recuperar el reporte recién creado');
+      }
+      return reporteGuardado;
+
     } catch (err: any) {
       if (err?.errno === FK_ERRNO) {
         throw new ConflictException(
@@ -183,7 +195,7 @@ export class ReportesRepository {
    * se mueve un reporte de "Pendiente" a otro estado).
    * @throws ConflictException si alguna FK referenciada no existe.
    */
-  async update(id: number, changes: CambiosReporte): Promise<Reporte | undefined> {
+  async update(id: string, changes: CambiosReporte): Promise<Reporte | undefined> {
     const mapaColumnas: Record<string, string> = {
       nombre: 'nombre',
       descripcion: 'descripcion',
