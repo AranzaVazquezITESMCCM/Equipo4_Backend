@@ -1,8 +1,10 @@
 CREATE DATABASE IF NOT EXISTS fraud2;
 USE fraud2;
 
-
+-- ============================================
 -- 1. TABLAS MAESTRAS (CATÁLOGOS)
+-- ============================================
+
 CREATE TABLE rol (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL UNIQUE,
@@ -30,7 +32,10 @@ CREATE TABLE tipo_fraude (
     nombre VARCHAR(100) NOT NULL UNIQUE
 );
 
+-- ============================================
 -- 2. USUARIOS Y RECUPERACIÓN (UUIDs)
+-- ============================================
+
 CREATE TABLE usuario (
     id VARCHAR(36) PRIMARY KEY,
     correo VARCHAR(255) NOT NULL UNIQUE,
@@ -54,7 +59,10 @@ CREATE TABLE recovery_code (
         FOREIGN KEY (usuario_id) REFERENCES usuario(id)
 );
 
--- 3. TABLA REPORTE (UUID + Campos de Evidencia/Precio)
+-- ============================================
+-- 3. TABLA REPORTE (UUID)
+-- ============================================
+
 CREATE TABLE reporte (
     id VARCHAR(36) PRIMARY KEY,
     nombre VARCHAR(150) NOT NULL,
@@ -105,12 +113,11 @@ INSERT INTO fuente (tipo_fuente, valor_fuente) VALUES
 ('Mensajería', 'WhatsApp'),
 ('Otro', 'Recomendación personal');
 
-INSERT INTO estado (nombre) VALUES
-('Pendiente'),
-('En revisión'),
-('Verificado'),
-('Rechazado'),
-('Cerrado');
+-- Catálogo reducido a exactamente los 3 estados solicitados
+INSERT INTO estado (id, nombre) VALUES
+(1, 'En revisión'),
+(2, 'Fraude confirmado'),
+(3, 'No es fraude');
 
 INSERT INTO tipo_propiedad (nombre) VALUES
 ('Departamento'),
@@ -174,7 +181,7 @@ INSERT INTO usuario (
     3
 );
 
--- REPORTES DE PRUEBA (UUIDs)
+-- REPORTES DE PRUEBA (estado_id mapeado a 1, 2 o 3)
 INSERT INTO reporte (
     id,
     nombre,
@@ -195,102 +202,3 @@ INSERT INTO reporte (
 (
     'a1111111-1111-1111-1111-111111111111',
     'Departamento sospechoso en Airbnb',
-    'El supuesto propietario solicita depósito fuera de Airbnb.',
-    -99.13320900,
-    19.43260800,
-    'test_portada_1.jpg',
-    'test_evidencia_1.jpg',
-    8500.00,
-    'Centro',
-    '5551234567',
-    '11111111-1111-1111-1111-111111111111',
-    1,
-    1,
-    1,
-    3
-),
-(
-    'a2222222-2222-2222-2222-222222222222',
-    'Casa falsa en Booking',
-    'El anuncio utiliza fotografías de otra propiedad.',
-    -99.16766400,
-    19.42722500,
-    'test_portada_2.jpg',
-    'test_evidencia_2.jpg',
-    12000.00,
-    'Roma Norte',
-    '5559876543',
-    '11111111-1111-1111-1111-111111111111',
-    2,
-    2,
-    2,
-    2
-),
-(
-    'a3333333-3333-3333-3333-333333333333',
-    'Habitación inexistente',
-    'El anuncio desapareció después de realizar el pago.',
-    -99.18000000,
-    19.40000000,
-    'test_portada_3.jpg',
-    'test_evidencia_3.jpg',
-    5000.00,
-    'Coyoacán',
-    '5551112233',
-    '22222222-2222-2222-2222-222222222222',
-    1,
-    3,
-    3,
-    1
-),
-(
-    'a4444444-4444-4444-4444-444444444444',
-    'Villa con fotos engañosas',
-    'Las fotografías del anuncio no corresponden con la propiedad.',
-    -99.15000000,
-    19.45000000,
-    'test_portada_4.jpg',
-    'test_evidencia_4.jpg',
-    15000.00,
-    'Polanco',
-    '5554445566',
-    '22222222-2222-2222-2222-222222222222',
-    3,
-    2,
-    4,
-    4
-),
-(
-    'a5555555-5555-5555-5555-555555555555',
-    'Cabaña sospechosa en Facebook',
-    'El vendedor solicita un depósito antes de mostrar la propiedad.',
-    -99.12000000,
-    19.46000000,
-    'test_portada_5.jpg',
-    'test_evidencia_5.jpg',
-    3000.00,
-    'Tlalpan',
-    '5557778899',
-    '11111111-1111-1111-1111-111111111111',
-    4,
-    1,
-    5,
-    5
-),
-(
-    'a6666666-6666-6666-6666-666666666666',
-    'Departamento con doble reservación',
-    'La misma propiedad aparece reservada para diferentes personas.',
-    -99.14000000,
-    19.44000000,
-    'test_portada_6.jpg',
-    'test_evidencia_6.jpg',
-    9000.00,
-    'Condesa',
-    '5552223344',
-    '22222222-2222-2222-2222-222222222222',
-    1,
-    3,
-    1,
-    5
-);
