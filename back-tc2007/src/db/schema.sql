@@ -115,3 +115,114 @@ INSERT INTO tipo_fraude (nombre) VALUES
 ('Solicitud de depósito fraudulento');
 
 ALTER TABLE recovery_code MODIFY COLUMN id VARCHAR(36) NOT NULL;
+
+
+-- Reporte 1
+(
+    'Departamento sospechoso en Airbnb',
+    'El supuesto propietario solicita depósito fuera de Airbnb.',
+    -99.133209,
+    19.432608,
+    'test_portada_1.jpg',
+    'test_evidencia_1.jpg',
+    8500.00,
+    'Centro',
+    '5551234567',
+    '11111111-1111-1111-1111-111111111111',
+    1,
+    1,
+    1,
+    3
+),
+
+-- Reporte 2
+(
+    'Casa falsa en Booking',
+    'El anuncio utiliza fotografías de otra propiedad.',
+    -99.167664,
+    19.427225,
+    'test_portada_2.jpg',
+    'test_evidencia_2.jpg',
+    12000.00,
+    'Roma Norte',
+    '5559876543',
+    '11111111-1111-1111-1111-111111111111',
+    2,
+    2,
+    2,
+    2
+),
+
+-- Reporte 3
+(
+    'Habitación inexistente',
+    'El anuncio desapareció después de realizar el pago.',
+    -99.180000,
+    19.400000,
+    'test_portada_3.jpg',
+    'test_evidencia_3.jpg',
+    5000.00,
+    'Coyoacán',
+    '5551112233',
+    '22222222-2222-2222-2222-222222222222',
+    1,
+    3,
+    3,
+    1
+),
+
+-- Reporte 4
+(
+    'Villa con fotos engañosas',
+    'Las fotografías del anuncio no corresponden con la propiedad.',
+    -99.150000,
+    19.450000,
+    'test_portada_4.jpg',
+    'test_evidencia_4.jpg',
+    15000.00,
+    'Polanco',
+    '5554445566',
+    '22222222-2222-2222-2222-222222222222',
+    3,
+    2,
+    4,
+    4
+),
+
+-- Reporte 5
+(
+    'Cabaña sospechosa en Facebook',
+    'El vendedor solicita un depósito antes de mostrar la propiedad.',
+    -99.120000,
+    19.460000,
+    'test_portada_5.jpg',
+    'test_evidencia_5.jpg',
+    3000.00,
+    'Tlalpan',
+    '5557778899',
+    '11111111-1111-1111-1111-111111111111',
+    4,
+    1,
+    5,
+    5
+),
+
+-- Reporte 6
+(
+    'Departamento con doble reservación',
+    'La misma propiedad aparece reservada para diferentes personas.',
+    -99.140000,
+    19.440000,
+    'test_portada_6.jpg',
+    'test_evidencia_6.jpg',
+    9000.00,
+    'Condesa',
+    '5552223344',
+    '22222222-2222-2222-2222-222222222222',
+    1,
+    3,
+    1,
+    5
+);
+
+

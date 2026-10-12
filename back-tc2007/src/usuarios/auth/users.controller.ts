@@ -14,7 +14,6 @@ import { AuthService } from './users.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
-import { ApiBody, ApiOkResponse, ApiOperation } from '@nestjs/swagger';
 
 /**
  * Autenticación y alta de cuentas (`/auth`).
