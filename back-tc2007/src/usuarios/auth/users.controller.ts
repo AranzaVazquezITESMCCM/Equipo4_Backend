@@ -14,7 +14,7 @@ import { AuthService } from './users.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
-import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ApiBody, ApiOkResponse, ApiOperation } from '@nestjs/swagger';
 
 /**
  * Autenticación y alta de cuentas (`/auth`).
@@ -148,15 +148,30 @@ export class AuthController {
     return this.service.forgotPassword(dto.correo);
   }
 
-  /**
-   * Establece una nueva contraseña usando el token de recuperación
-   * generado en `POST /auth/forgot-password`.
-   */
-  @ApiOperation({ summary: 'Restablecer contraseña' })
-  @ApiOkResponse({ description: 'Contraseña actualizada.' })
-  @Post('reset-password')
+@ApiOperation({ summary: 'Verificar código de recuperación' })
+@ApiBody({
+  schema: {
+    type: 'object',
+    properties: {
+      correo: { type: 'string', format: 'email' },
+      codigo: { type: 'string', example: 'K7M2QX' },
+    },
+    required: ['correo', 'codigo'],
+  },
+})
+@ApiOkResponse({ description: 'Código válido.' })
+@Post('verify-code')
+@HttpCode(200)
+verifyCode(@Body() dto: { correo: string; codigo: string }) {
+  return this.service.verifyCode(dto.correo, dto.codigo);
+}
+
+@Post('reset-password')
   @HttpCode(200)
-  resetPassword(@Body() dto: ResetPasswordDto) {
-    return this.service.resetPassword(dto);
+  async resetPassword(@Body() body: { correo: string; codigo: string; nuevaContrasena: string }) {
+    // Si en tu constructor se llama 'authService', usa this.authService.resetPassword
+    // Si en tu constructor se llama 'service', usa this.service.resetPassword
+    return this.service.resetPassword(body);
   }
+
 }

@@ -82,7 +82,6 @@ export class UsersRepository {
 
     return (await this.findById(id))!;
   }
-
   /**
    * Lista las solicitudes de administrador pendientes (`rol_id = 4`)
    * activas. Devuelve filas crudas, no entidades, y solo con los
@@ -136,43 +135,66 @@ export class UsersRepository {
    * usado. No invalida códigos anteriores del mismo usuario: si pide
    * varios, todos siguen siendo válidos hasta que expiren o se usen.
    */
-  async createRecoveryCode(usuarioId: string, codigo: string, expiraEn: Date): Promise<void> {
+/**
+   * Guarda un código de recuperación de contraseña, marcado como no usado.
+   * Invalida los códigos anteriores del mismo usuario y genera un ID de 8 caracteres.
+   */
+  async createRecoveryCode(usuarioId: string, codigo: string, expiraEn: Date) {
+    // 1. Invalida TODOS los códigos anteriores que no se hayan usado aún
+    await this.pool.query(
+      `UPDATE recovery_code 
+       SET usado = TRUE 
+       WHERE usuario_id = ? AND usado = FALSE`,
+      [usuarioId]
+    );
+
+    // Generar ID único para la fila de recovery_code
     const id = Math.random().toString(36).substring(2, 10);
-    await this.pool.query<ResultSetHeader>(
-      `INSERT INTO recovery_code
-        (id, usuario_id, codigo, expira_en, usado)
+
+    // 2. Inserta el nuevo código activo con su id correspondiente
+    await this.pool.query(
+      `INSERT INTO recovery_code (id, usuario_id, codigo, expira_en, usado) 
        VALUES (?, ?, ?, ?, FALSE)`,
-      [id, usuarioId, codigo, expiraEn],
+      [id, usuarioId, codigo, expiraEn]
     );
   }
 
   /**
-   * Busca un código de recuperación no usado que coincida con el
-   * usuario y el código. No filtra por expiración: esa validación la
-   * hace {@link AuthService.resetPassword} con `expira_en`.
-   *
-   * @returns La fila cruda de `recovery_code`, o `undefined` si no hay
-   * coincidencia.
+   * Busca un código de recuperación no usado que coincida con el usuario y el código.
+   * La comparación es case-sensitive usando BINARY.
    */
-  async findRecoveryCode(usuarioId: string, codigo: string): Promise<RowDataPacket | undefined> {
-    const [rows] = await this.pool.query<RowDataPacket[]>(
-      `SELECT id, usuario_id, codigo, expira_en, usado
-       FROM recovery_code
-       WHERE usuario_id = ?
-       AND codigo = ?
-       AND usado = FALSE`,
-      [usuarioId, codigo],
+  async findRecoveryCode(usuarioId: string, codigo: string) {
+    const [rows]: any = await this.pool.query(
+      `SELECT * FROM recovery_code 
+       WHERE usuario_id = ? 
+         AND codigo = BINARY ? 
+         AND usado = FALSE 
+       LIMIT 1`,
+      [usuarioId, codigo]
     );
-    return rows[0];
+    return rows[0] || null;
   }
 
   /** Marca un código de recuperación como usado para que no se pueda reutilizar. */
-  async useRecoveryCode(id: string): Promise<void> {
+/** Marca un código de recuperación como usado */
+async useRecoveryCode(id: string | number): Promise<void> {
+  await this.pool.query(
+    `UPDATE recovery_code
+     SET usado = TRUE
+     WHERE id = ?`,
+    [id],
+  );
+}
+
+  /**
+   * Reemplaza el hash y el salt de un usuario. Ambos se actualizan juntos.
+   */
+  async updatePassword(usuarioId: string, contrasena: string, salt: string): Promise<void> {
     await this.pool.query(
-      `UPDATE recovery_code
-       SET usado = TRUE
+      `UPDATE usuario
+       SET contrasena = ?, salt = ?
        WHERE id = ?`,
-      [id],
+      [contrasena, salt, usuarioId],
     );
   }
 
