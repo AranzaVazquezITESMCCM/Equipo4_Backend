@@ -8,6 +8,7 @@ import { EstadosModule } from './estados/estados.module';
 import { TiposPropiedadModule } from './tipos-propiedad/tipos-propiedad.module';
 import { TiposFraudeModule } from './tipos-fraude/tipos-fraude.module';
 import { ReportesModule } from './reportes/reportes.module';
+import { EstadisticasModule } from './estadisticas/estadisticas.module';
 
 /**
  * Módulo raíz. Agrupa el módulo de usuarios/autenticación (`UsuariosModule`,
@@ -23,6 +24,7 @@ import { ReportesModule } from './reportes/reportes.module';
     TiposPropiedadModule,
     TiposFraudeModule,
     ReportesModule,
+    EstadisticasModule,
   ],
   controllers: [AppController],
   providers: [AppService],

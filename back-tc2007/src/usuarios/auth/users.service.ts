@@ -4,6 +4,7 @@ import {
   NotFoundException,
   UnauthorizedException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { generateSalt, hashPassword, verifyPassword } from '../../common/password.util';
 import { randomInt } from 'node:crypto';
@@ -40,6 +41,8 @@ const REFRESH_TTL = 7 * 24 * 60 * 60;
  */
 @Injectable()
 export class AuthService {
+   /** Bitácora de auditoría de la recuperación de contraseña. */
+  private readonly auditoria = new Logger('RecuperacionContrasena');
   constructor(private readonly users: UsersRepository) {}
 
   /**
@@ -288,6 +291,7 @@ export class AuthService {
   async forgotPassword(email: string): Promise<{ message: string }> {
     const user = await this.users.findByEmail(email);
     if (!user) {
+       this.auditoria.warn(`Solicitud de código FALLIDA: correo no registrado (${email})`);
       throw new UnauthorizedException('El usuario no existe');
     }
     const caracteres = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -304,8 +308,7 @@ export class AuthService {
       text: `Tu código de recuperación es: ${codigo}
     Este código es válido por 15 minutos y solo puede usarse una vez.`,
     });
-    console.log('Código de recuperación:', codigo);
-    console.log('Expira en:', expiraEn);
+        this.auditoria.log(`Código de recuperación enviado a ${email} (usuario ${user.id})`);
     return {
       message: 'Se generó el código de recuperación',
     };
@@ -314,12 +317,15 @@ export class AuthService {
 async verifyCode(correo: string, codigo: string): Promise<{ message: string }> {
   const user = await this.users.findByEmail(correo);
   if (!user) {
+    this.auditoria.warn(`Verificación de código FALLIDA: correo no registrado (${correo})`);
     throw new UnauthorizedException('Código inválido');
   }
   const recovery = await this.users.findRecoveryCode(user.id!, codigo);
-if (!recovery || recovery.usado) {
-  throw new UnauthorizedException('Código inválido o ya utilizado');
-}
+  if (!recovery || recovery.usado) {
+    this.auditoria.warn(`Verificación de código FALLIDA para ${correo}: código inválido o ya usado`);
+    throw new UnauthorizedException('Código inválido o ya utilizado');
+  }
+  this.auditoria.log(`Código verificado correctamente para ${correo}`);
   return { message: 'Código válido' };
 }
 
@@ -327,13 +333,15 @@ async resetPassword(dto: { correo: string; codigo: string; nuevaContrasena: stri
   // 1. Buscar usuario
   const user = await this.users.findByEmail(dto.correo);
   if (!user) {
+    this.auditoria.warn(`Restablecimiento FALLIDO: correo no registrado (${dto.correo})`);
     throw new UnauthorizedException('El correo o código es inválido');
   }
 
   // 2. Buscar y validar código de recuperación activo
   const recovery = await this.users.findRecoveryCode(user.id!, dto.codigo);
   
-  if (!recovery || Boolean(recovery.usado) || new Date() > new Date(recovery.expira_en)) {
+ if (!recovery || Boolean(recovery.usado) || new Date() > new Date(recovery.expira_en)) {
+    this.auditoria.warn(`Restablecimiento FALLIDO para ${dto.correo}: código incorrecto, usado o expirado`);
     throw new UnauthorizedException('El código es incorrecto o ya expiró');
   }
 
@@ -346,6 +354,7 @@ async resetPassword(dto: { correo: string; codigo: string; nuevaContrasena: stri
 
   // 5. Actualizar ambos valores en la base de datos
   await this.users.updatePassword(user.id!, newHash, newSalt);
+   this.auditoria.log(`Contraseña restablecida para ${dto.correo} (usuario ${user.id})`);
 
   return { message: 'Contraseña actualizada correctamente' };
 }

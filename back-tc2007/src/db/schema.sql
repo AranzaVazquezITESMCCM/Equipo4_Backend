@@ -103,6 +103,7 @@ INSERT INTO rol (id, nombre, alias) VALUES
 (1, 'Usuario', 'user'),
 (2, 'Administrador', 'admin'),
 (3, 'Superadministrador', 'superadmin');
+(4, 'Administrador Pendiente', 'pending');
 
 INSERT INTO fuente (tipo_fuente, valor_fuente) VALUES
 ('Plataforma', 'Airbnb'),
