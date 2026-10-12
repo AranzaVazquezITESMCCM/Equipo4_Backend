@@ -24,7 +24,21 @@ export class ReporteResponseDto {
   description: 'URL pública de la foto de evidencia',
   example: '/uploads/reportes/a3f1c2a0-4e9d-4a7a-9c2e-1f8a6d2b7e10.jpg',
 })
-fotoUrl!: string;
+
+  @ApiProperty({ example: '/uploads/reportes/a3f1....jpg' })
+  portada!: string;
+
+  @ApiProperty({ example: '/uploads/reportes/b4f2....jpg' })
+  evidencia!: string;
+
+  @ApiProperty({ example: 4200, nullable: true })
+  precio!: number | null;
+
+  @ApiProperty({ example: 'Condesa, CDMX', nullable: true })
+  zona!: string | null;
+
+  @ApiProperty({ example: '+52 55 0000 0000', nullable: true })
+  contactoOfertante!: string | null;
 
 @ApiProperty({
   example: 'b3f1c2a0-4e9d-4a7a-9c2e-1f8a6d2b7e10',
@@ -61,7 +75,11 @@ usuarioId!: string;
     dto.descripcion = reporte.descripcion;
     dto.longitud = reporte.longitud;
     dto.latitud = reporte.latitud;
-    dto.fotoUrl = reporte.foto;
+    dto.portada = reporte.portada;
+    dto.evidencia = reporte.evidencia;
+    dto.precio = reporte.precio;
+    dto.zona = reporte.zona;
+    dto.contactoOfertante = reporte.contactoOfertante;
     dto.usuarioId = reporte.usuarioId;
     dto.fuenteId = reporte.fuenteId;
     dto.estadoId = reporte.estadoId;

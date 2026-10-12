@@ -26,7 +26,19 @@ export class Reporte {
  * la foto se sube primero a una carpeta temporal (`POST /reportes/fotos`)
  * y se mueve aquí al crear el reporte (ver {@link ReportesService.create}).
  */
-  foto!: string;
+  evidencia!: string;
+
+  /** Ruta pública de la imagen de portada. */
+  portada!: string;
+
+    /** Precio del anuncio en MXN (opcional, DECIMAL(10,2)). */
+  precio!: number | null;
+
+  /** Zona o colonia escrita por el usuario (opcional). */
+  zona!: string | null;
+
+  /** Teléfono o perfil del ofertante (opcional). */
+  contactoOfertante!: string | null;
 
 /**
  * FK hacia `usuario.id` (UUID). Se asigna a partir del token del

@@ -7,12 +7,13 @@ import {
   Param,
   ParseIntPipe,
   Patch,
+  Query,
   Post,
   UseGuards,
   UseInterceptors,
-  UploadedFile,
+  UploadedFiles,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { randomUUID } from 'node:crypto';
 import { extname } from 'node:path';
@@ -35,6 +36,9 @@ import { FotoTempResponseDto } from './dto/foto-temp-response.dto';
 import { CreateReporteDto } from './dto/create-reporte.dto';
 import { UpdateReporteDto } from './dto/update-reporte.dto';
 import { FOTOS_TMP_DIR } from './uploads.paths';
+import { AdminGuard } from 'src/usuarios/auth/admin.guard';
+import { UsuariosService } from '../usuarios/usuarios.service';
+import { UsuarioResponseDto } from '../usuarios/dto/usuario-response.dto';
 
 /**
  * CRUD de reportes de fraude (`/reportes`). Requiere Bearer token.
@@ -48,7 +52,7 @@ import { FOTOS_TMP_DIR } from './uploads.paths';
 @Controller('reportes')
 @UseGuards(AuthGuard)
 export class ReportesController {
-  constructor(private readonly service: ReportesService) {}
+  constructor(private readonly service: ReportesService, private readonly usuariosService: UsuariosService) {}
 
   /**
    * Sube una foto de evidencia a una carpeta temporal, ANTES de crear
@@ -66,26 +70,48 @@ export class ReportesController {
   @ApiBody({
     schema: {
       type: 'object',
-      properties: { foto: { type: 'string', format: 'binary' } },
-      required: ['foto'],
+      properties:
+      {fotos:
+        {type: 'array', items:
+          {type: 'string',format: 'binary'}, minItems: 2, maxItems: 2,
+        },
+      },
+    required: ['fotos'],
     },
   })
-  @ApiOkResponse({ type: FotoTempResponseDto })
+  
+  @ApiOkResponse({
+    type: FotoTempResponseDto,
+    isArray: true,
+  })
   @Post('fotos')
   @UseInterceptors(
-    FileInterceptor('foto', {
+    FilesInterceptor('fotos', 2, {
       storage: diskStorage({
         destination: FOTOS_TMP_DIR,
         filename: (_req, file, callback) => {
           callback(null, `${randomUUID()}${extname(file.originalname)}`);
         },
       }),
+      limits: {
+        fileSize: 5 * 1024 *1024,
+      },
+      fileFilter: (_req, file, callback) => {
+        const tiposPermitidos = ['image/jpeg', 'image/png', 'image/webp'];
+
+        if (tiposPermitidos.includes(file.mimetype)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Solo se permiten imágenes JPG, PNG o WEBP'), false);
+        }
+      },
     }),
   )
-  uploadFoto(
-    @UploadedFile() file: Express.Multer.File,
-  ): FotoTempResponseDto {
-    return this.service.registrarFotoTemporal(file);
+   
+  uploadFotos(
+    @UploadedFiles() files: Express.Multer.File[],
+  ): FotoTempResponseDto[] {
+    return this.service.registrarFotoTemporal(files);
   }
 
   /**
@@ -110,8 +136,8 @@ export class ReportesController {
   @ApiOperation({ summary: 'Listar reportes' })
   @ApiOkResponse({ type: ReporteResponseDto, isArray: true })
   @Get()
-  findAll(): Promise<ReporteResponseDto[]> {
-    return this.service.findAll();
+  findAll(@CurrentUser() user: JwtPayload): Promise<ReporteResponseDto[]> {
+    return this.service.findAll(user);
   }
 
   /**
@@ -127,16 +153,62 @@ export class ReportesController {
     return this.service.findByUsuario(user.sub);
   }
 
+  /**
+   * Búsqueda de reportes. Un usuario normal solo recibe reportes con
+   * "Fraude confirmado" (se ignora el estadoId que mande); un admin
+   * puede filtrar por cualquier estado. `q` busca por palabra clave en
+   * nombre, descripción y contacto del ofertante (URL, teléfono, etc.).
+   * Debe declararse antes de `GET /reportes/:id`.
+   */
+  @ApiOperation({ summary: 'Buscar/filtrar reportes' })
+  @ApiOkResponse({ type: ReporteResponseDto, isArray: true })
+  @Get('filter')
+  filter(
+    @CurrentUser() user: JwtPayload,
+    @Query('q') q?: string,
+    @Query('estadoId') estadoId?: string,
+    @Query('fuenteId') fuenteId?: string,
+    @Query('tipoPropiedadId') tipoPropiedadId?: string,
+    @Query('tipoFraudeId') tipoFraudeId?: string,
+  ): Promise<ReporteResponseDto[]> {
+    return this.service.filter(user, {
+      q: q?.trim() || undefined,
+      estadoId: estadoId ? Number(estadoId) : undefined,
+      fuenteId: fuenteId ? Number(fuenteId) : undefined,
+      tipoPropiedadId: tipoPropiedadId ? Number(tipoPropiedadId) : undefined,
+      tipoFraudeId: tipoFraudeId ? Number(tipoFraudeId) : undefined,
+    });
+  }
+  
+  /**
+ * Datos del autor de un reporte. Solo admin / super admin.
+ * Devuelve UsuarioResponseDto, que ya excluye contrasena y salt.
+ */
+@ApiOperation({ summary: 'Obtener datos del autor de un reporte (solo admin)' })
+@ApiParam({ name: 'id', type: Number })
+@ApiOkResponse({ type: UsuarioResponseDto })
+@Get(':id/autor')
+@UseGuards(AdminGuard)
+async findAutor(
+  @CurrentUser() user: JwtPayload,
+  @Param('id', ParseIntPipe) id: number,
+): Promise<UsuarioResponseDto> {
+  const reporte = await this.service.findOne(id, user);
+  return this.usuariosService.findOne(reporte.usuarioId);
+}
+
   /** Obtiene un reporte por id. 404 si no existe o está borrado. */
   @ApiOperation({ summary: 'Obtener un reporte por id' })
   @ApiParam({ name: 'id', type: Number })
   @ApiOkResponse({ type: ReporteResponseDto })
   @Get(':id')
   findOne(
+    @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
   ): Promise<ReporteResponseDto> {
-    return this.service.findOne(id);
+    return this.service.findOne(id, user);
   }
+
 
   /**
    * Actualiza parcialmente un reporte. Incluir `estadoId` en el body
@@ -147,11 +219,13 @@ export class ReportesController {
   @ApiParam({ name: 'id', type: Number })
   @ApiOkResponse({ type: ReporteResponseDto })
   @Patch(':id')
+  @UseGuards(AdminGuard)
   update(
+    @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateReporteDto,
   ): Promise<ReporteResponseDto> {
-    return this.service.update(id, dto);
+    return this.service.update(id, dto, user);
   }
 
   /** Borra lógicamente un reporte (`deleted_at = NOW()`). */

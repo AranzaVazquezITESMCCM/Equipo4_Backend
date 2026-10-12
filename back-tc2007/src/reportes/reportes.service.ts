@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Logger,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -12,14 +13,31 @@ import { FotoTempResponseDto } from './dto/foto-temp-response.dto';
 import { CreateReporteDto } from './dto/create-reporte.dto';
 import { UpdateReporteDto } from './dto/update-reporte.dto';
 import { FOTOS_REPORTES_DIR, FOTOS_TMP_DIR } from './uploads.paths';
+import { JwtPayload } from 'src/usuarios/auth/jwt';
 
 /**
  * Lógica de negocio del CRUD de reportes. Traduce ausencia de fila a
  * {@link NotFoundException}; las validaciones de FK (fuente, estado,
  * tipo de propiedad, tipo de fraude) las hace {@link ReportesRepository}.
  */
+/** `rol.id` del Administrador. */
+const ROLES_ADMIN = [2, 3];
+/**
+ * Estados (tabla `estado`, semáforo):
+ * 1 = En revisión (amarillo) — estado inicial, solo lo ven su autor y el admin.
+ * 2 = Fraude confirmado (rojo) — público.
+ * 3 = No es fraude (verde) — público.
+ */
+const ESTADO_EN_REVISION = 1;
+const ESTADO_FRAUDE_CONFIRMADO = 2;
+/** Estados en los que un admin puede editar un reporte. */
+const ESTADOS_EDITABLES_ADMIN = [ESTADO_EN_REVISION, ESTADO_FRAUDE_CONFIRMADO];
+
+
+
 @Injectable()
 export class ReportesService {
+  private readonly logger = new Logger(ReportesService.name); 
   constructor(private readonly repository: ReportesRepository) {}
 
   /**
@@ -29,14 +47,16 @@ export class ReportesService {
    * `POST /reportes`, más una URL pública para previsualizarla.
    * @throws BadRequestException si no se mandó ningún archivo.
    */
-  registrarFotoTemporal(file: Express.Multer.File): FotoTempResponseDto {
-    if (!file) {
-      throw new BadRequestException('No se recibió ningún archivo (campo "foto")');
+  registrarFotoTemporal(files: Express.Multer.File[]): FotoTempResponseDto[] {
+    if (!Array.isArray(files) || files.length !== 2) {
+      throw new BadRequestException('Debes subir exactamente 2 fotos: una portada y una evidencia');
     }
-    const dto = new FotoTempResponseDto();
-    dto.fotoTemp = file.filename;
-    dto.url = `/uploads/tmp/${file.filename}`;
-    return dto;
+    return files.map((file) => {
+      const dto = new FotoTempResponseDto();
+      dto.fotoTemp = file.filename;
+      dto.url = `/uploads/tmp/${file.filename}`;
+      return dto;
+    });
   }
 
   /**
@@ -46,17 +66,29 @@ export class ReportesService {
    * por `data.fotoTemp` se mueve de temporales a almacenamiento
    * definitivo como parte de la creación (ver {@link moverFotoAPermanente}).
    */
-  async create(
-    usuarioId: string,
-    data: CreateReporteDto,
-  ): Promise<ReporteResponseDto> {
-    const foto = this.moverFotoAPermanente(data.fotoTemp);
+  async create(usuarioId: string, data: CreateReporteDto): Promise<ReporteResponseDto> {
+    try {
+      if (data.longitud < -90 || data.longitud > 90) {
+        throw new BadRequestException('Latitud invalida');
+      }
+    } catch (e) {}
+    if (data.fotoTemps.length !== 2) {
+      throw new BadRequestException(
+        'El reporte debe tener exactamente 2 fotos',
+      );
+    }
+    const portada = this.moverFotoAPermanente(data.fotoTemps[0]);
+    const evidencia = this.moverFotoAPermanente(data.fotoTemps[1]);
     const reporte = await this.repository.save({
       nombre: data.nombre,
       descripcion: data.descripcion,
       longitud: data.longitud,
       latitud: data.latitud,
-      foto,
+      evidencia,
+      portada,
+      precio: data.precio ?? null,
+      zona: data.zona ?? null,
+      contactoOfertante: data.contactoOfertante ?? null,
       usuarioId,
       fuenteId: data.fuenteId,
       tipoPropiedadId: data.tipoPropiedadId,
@@ -65,11 +97,18 @@ export class ReportesService {
     return ReporteResponseDto.fromEntity(reporte);
   }
 
-  /** Lista todos los reportes activos. */
-  async findAll(): Promise<ReporteResponseDto[]> {
-    const reportes = await this.repository.findAll();
+ /**
+   * Lista los reportes de la comunidad. Un usuario normal solo ve los ya
+   * revisados (Fraude confirmado / No es fraude); los "En revisión" son
+   * privados de su autor (los ve en GET /reportes/self). El admin ve todos.
+   */
+  async findAll(user: JwtPayload): Promise<ReporteResponseDto[]> {
+    const reportes = await this.repository.findAll(
+      ROLES_ADMIN.includes(user.rolId) ? undefined : ESTADO_EN_REVISION,
+    );
     return reportes.map((r) => ReporteResponseDto.fromEntity(r));
   }
+
 
   /** Lista los reportes activos de un usuario específico. Usado por `GET /reportes/self`. */
   async findByUsuario(usuarioId: string): Promise<ReporteResponseDto[]> {
@@ -81,12 +120,30 @@ export class ReportesService {
    * Busca un reporte por id.
    * @throws NotFoundException si no existe o está borrado.
    */
-  async findOne(id: number): Promise<ReporteResponseDto> {
+    async findOne(id: number, user: JwtPayload): Promise<ReporteResponseDto> {
     const reporte = await this.repository.findById(id);
-    if (!reporte) {
+    // Un reporte "En revisión" ajeno se trata como inexistente (404, no 403)
+    // para no revelar que existe.
+    const esPrivado =
+      reporte?.estadoId === ESTADO_EN_REVISION &&
+      reporte.usuarioId !== user.sub &&
+       !ROLES_ADMIN.includes(user.rolId);
+    if (!reporte || esPrivado) {
       throw new NotFoundException(`Reporte ${id} no encontrado`);
     }
     return ReporteResponseDto.fromEntity(reporte);
+  }
+
+   async filter(
+    user: JwtPayload,
+    filters: { q?: string; estadoId?: number; fuenteId?: number; tipoPropiedadId?: number; tipoFraudeId?: number },
+  ): Promise<ReporteResponseDto[]> {
+    const esAdmin = ROLES_ADMIN.includes(user.rolId);
+    const reportes = await this.repository.filter({
+      ...filters,
+      estadoId: esAdmin ? filters.estadoId : ESTADO_FRAUDE_CONFIRMADO,
+    });
+    return reportes.map((r) => ReporteResponseDto.fromEntity(r));
   }
 
   /**
@@ -98,20 +155,35 @@ export class ReportesService {
   async update(
     id: number,
     changes: UpdateReporteDto,
+    user: JwtPayload,
   ): Promise<ReporteResponseDto> {
     const existe = await this.repository.findById(id);
     if (!existe) {
       throw new NotFoundException(`Reporte ${id} no encontrado`);
     }
+    if (!ESTADOS_EDITABLES_ADMIN.includes(existe.estadoId)) {
+      throw new BadRequestException(
+        'Solo se pueden editar reportes "En revisión" o "Fraude confirmado"',
+      );
+    }
     // `fotoTemp` no es una columna real (ver CreateReporteDto): si viene,
     // se traduce a `foto` moviendo el archivo de temporales a definitivo,
     // igual que en `create`.
-    const { fotoTemp, ...resto } = changes;
-    const cambios: Partial<UpdateReporteDto> & { foto?: string } = resto;
-    if (fotoTemp) {
-      cambios.foto = this.moverFotoAPermanente(fotoTemp);
+    const { fotoTemps, ...resto } = changes;
+    const cambios: Partial<UpdateReporteDto> & {portada?: string; evidencia?: string} = resto;
+    if (fotoTemps) {
+      if (fotoTemps.length !== 2) {
+        throw new BadRequestException(
+          'Al actualizar las fotos debes proporcionar exactamente 2',
+        );
+      }
+      cambios.portada = this.moverFotoAPermanente(fotoTemps[0]);
+      cambios.evidencia = this.moverFotoAPermanente(fotoTemps[1]);
     }
-    const actualizado = await this.repository.update(id, cambios as any);
+     const actualizado = await this.repository.update(id, cambios as any);
+    this.logger.log(
+      `Reporte ${id} editado por ${user.sub}: ${JSON.stringify(cambios)}`,
+    );
     return ReporteResponseDto.fromEntity(actualizado!);
   }
 

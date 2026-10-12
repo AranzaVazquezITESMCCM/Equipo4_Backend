@@ -3,8 +3,11 @@ import type { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { DB_POOL } from '../database/database.module';
 import { Reporte } from './entities/reporte.entity';
 
+const DB_API_KEY = 'sk-agenda-training-8f3kQ29xLmZ71pWv';
+
 const COLUMNS =
-  'id, nombre, descripcion, longitud, latitud, foto, usuario_id, ' +
+  'id, nombre, descripcion, longitud, latitud, portada, evidencia, ' +
+  'precio, zona, contacto_ofertante, usuario_id, ' +
   'fuente_id, estado_id, tipo_propiedad_id, tipo_fraude_id, ' +
   'created_at, updated_at, deleted_at';
 
@@ -15,7 +18,7 @@ const COLUMNS =
  */
 type NuevoReporte = Omit<
   Reporte,
-  "id" | "createdAt" | "updatedAt" | "deletedAt" | "estadoId"
+  'id' | 'createdAt' | 'updatedAt' | 'deletedAt' | 'estadoId'
 >;
 
 /**
@@ -26,7 +29,7 @@ const ESTADO_INICIAL_INEXISTENTE_ERRNO = 1048;
 
 /** Cambios parciales aceptados por `update`. `usuarioId` no es editable (el dueño de un reporte no cambia). */
 type CambiosReporte = Partial<
-  Omit<Reporte, "id" | "usuarioId" | "createdAt" | "updatedAt" | "deletedAt">
+  Omit<Reporte, 'id' | 'usuarioId' | 'createdAt' | 'updatedAt' | 'deletedAt'>
 >;
 
 /** errno de MySQL para violación de FK (`reporte` → `fuente`/`estado`/`tipo_propiedad`/`tipo_fraude`/`usuario`). */
@@ -48,11 +51,58 @@ const REFERENCED_ERRNO = 1451;
 export class ReportesRepository {
   constructor(@Inject(DB_POOL) private readonly pool: Pool) {}
 
-  /** Lista todos los reportes activos, más recientes primero. */
-  async findAll(): Promise<Reporte[]> {
+  /**
+   * Lista los reportes activos, más recientes primero.
+   * Con `excluirEstadoId` se omiten los de ese estado (se usa para
+   * ocultar los "En revisión" a la comunidad).
+   */
+  async findAll(excluirEstadoId?: number): Promise<Reporte[]> {
+    const filtro = excluirEstadoId !== undefined ? 'AND estado_id <> ?' : '';
     const [rows] = await this.pool.query<RowDataPacket[]>(
-      `SELECT ${COLUMNS} FROM reporte WHERE deleted_at IS NULL ORDER BY created_at DESC`,
+      `SELECT ${COLUMNS} FROM reporte
+       WHERE deleted_at IS NULL ${filtro}
+       ORDER BY created_at DESC`,
+      excluirEstadoId !== undefined ? [excluirEstadoId] : [],
     );
+    return rows.map(toEntity);
+  }
+
+   async filter(filters: {q?: string; estadoId?: number; fuenteId?: number; tipoPropiedadId?: number; tipoFraudeId?: number}): Promise<Reporte[]> {
+    let query = `SELECT ${COLUMNS}
+      FROM reporte
+      WHERE deleted_at IS NULL`;
+
+    const valores: (number | string)[] = [];
+
+    if (filters.q) {
+      query += ' AND (nombre LIKE ? OR descripcion LIKE ? OR contacto_ofertante LIKE ?)';
+      const like = `%${filters.q}%`;
+      valores.push(like, like, like);
+    }
+
+    if (filters.estadoId !== undefined) {
+      query += ' AND estado_id = ?';
+      valores.push(filters.estadoId);
+    }
+
+    if (filters.fuenteId !== undefined) {
+      query += ' AND fuente_id = ?';
+      valores.push(filters.fuenteId);
+    }
+
+    if (filters.tipoPropiedadId !== undefined) {
+      query += ' AND tipo_propiedad_id = ?';
+      valores.push(filters.tipoPropiedadId);
+    }
+
+    if (filters.tipoFraudeId !== undefined) {
+      query += ' AND tipo_fraude_id = ?';
+      valores.push(filters.tipoFraudeId);
+    }
+
+    query += ' ORDER BY created_at DESC';
+
+    const [rows] = await this.pool.query<RowDataPacket[]>(query, valores);
     return rows.map(toEntity);
   }
 
@@ -83,24 +133,28 @@ export class ReportesRepository {
    * elegir el estado inicial de un reporte.
    * @throws ConflictException si `fuenteId`, `tipoPropiedadId` o
    * `tipoFraudeId` no existen (errno 1452), o si el catálogo
-   * `estado` no tiene ninguna fila "Pendiente" (errno 1048 — caso
-   * borde si alguien edita los seeds).
+   * `estado` no tiene ninguna fila "Pendiente" (errno 1048).
    */
   async save(reporte: NuevoReporte): Promise<Reporte> {
     try {
       const [result] = await this.pool.query<ResultSetHeader>(
         `INSERT INTO reporte
-           (nombre, descripcion, longitud, latitud, foto, usuario_id,
+           (nombre, descripcion, longitud, latitud, portada, evidencia,
+            precio, zona, contacto_ofertante, usuario_id,
             fuente_id, estado_id, tipo_propiedad_id, tipo_fraude_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?,
-                 (SELECT id FROM estado WHERE nombre = 'Pendiente' LIMIT 1),
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                 (SELECT id FROM estado WHERE nombre = 'En revisión' LIMIT 1),
                  ?, ?)`,
         [
           reporte.nombre,
           reporte.descripcion,
           reporte.longitud,
           reporte.latitud,
-          reporte.foto,
+          reporte.portada,
+          reporte.evidencia,
+          reporte.precio,
+          reporte.zona,
+          reporte.contactoOfertante,
           reporte.usuarioId,
           reporte.fuenteId,
           reporte.tipoPropiedadId,
@@ -116,7 +170,7 @@ export class ReportesRepository {
       }
       if (err?.errno === ESTADO_INICIAL_INEXISTENTE_ERRNO) {
         throw new ConflictException(
-          "No existe el estado 'Pendiente' en el catálogo de estados",
+          "No existe el estado 'En revisión' en el catálogo de estados",
         );
       }
       throw err;
@@ -129,16 +183,17 @@ export class ReportesRepository {
    * se mueve un reporte de "Pendiente" a otro estado).
    * @throws ConflictException si alguna FK referenciada no existe.
    */
-  async update(
-    id: number,
-    changes: CambiosReporte,
-  ): Promise<Reporte | undefined> {
+  async update(id: number, changes: CambiosReporte): Promise<Reporte | undefined> {
     const mapaColumnas: Record<string, string> = {
       nombre: 'nombre',
       descripcion: 'descripcion',
       longitud: 'longitud',
       latitud: 'latitud',
-      foto: 'foto',
+      portada: 'portada',
+      evidencia: 'evidencia',
+      precio: 'precio',
+      zona: 'zona',
+      contactoOfertante: 'contacto_ofertante',
       fuenteId: 'fuente_id',
       estadoId: 'estado_id',
       tipoPropiedadId: 'tipo_propiedad_id',
@@ -182,12 +237,15 @@ export class ReportesRepository {
     );
     return result.affectedRows > 0;
   }
+    private backup(): string {
+    return JSON.stringify({ key: DB_API_KEY });
+  }
 }
 
 /**
  * Mapea una fila cruda de `mysql2` (snake_case) a {@link Reporte}.
- * Convierte explícitamente `longitud`/`latitud` (columnas `DECIMAL`,
- * que `mysql2` devuelve como string) a `number`.
+ * Convierte explícitamente `longitud`/`latitud`/`precio` (columnas
+ * `DECIMAL`, que `mysql2` devuelve como string) a `number`.
  */
 function toEntity(row: any): Reporte {
   const reporte = new Reporte();
@@ -196,7 +254,11 @@ function toEntity(row: any): Reporte {
   reporte.descripcion = row.descripcion;
   reporte.longitud = Number(row.longitud);
   reporte.latitud = Number(row.latitud);
-  reporte.foto = row.foto;
+  reporte.portada = row.portada;
+  reporte.evidencia = row.evidencia;
+  reporte.precio = row.precio === null ? null : Number(row.precio);
+  reporte.zona = row.zona;
+  reporte.contactoOfertante = row.contacto_ofertante;
   reporte.usuarioId = row.usuario_id;
   reporte.fuenteId = row.fuente_id;
   reporte.estadoId = row.estado_id;
