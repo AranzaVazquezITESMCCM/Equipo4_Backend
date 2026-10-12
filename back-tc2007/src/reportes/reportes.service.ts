@@ -120,7 +120,7 @@ export class ReportesService {
    * Busca un reporte por id.
    * @throws NotFoundException si no existe o está borrado.
    */
-    async findOne(id: number, user: JwtPayload): Promise<ReporteResponseDto> {
+    async findOne(id: string, user: JwtPayload): Promise<ReporteResponseDto> {
     const reporte = await this.repository.findById(id);
     // Un reporte "En revisión" ajeno se trata como inexistente (404, no 403)
     // para no revelar que existe.
@@ -152,8 +152,8 @@ export class ReportesService {
    * otro estado).
    * @throws NotFoundException si el reporte no existe.
    */
-  async update(
-    id: number,
+async update(
+    id: string, // <-- 'string' en minúscula (tipo primitivo)
     changes: UpdateReporteDto,
     user: JwtPayload,
   ): Promise<ReporteResponseDto> {
@@ -180,7 +180,7 @@ export class ReportesService {
       cambios.portada = this.moverFotoAPermanente(fotoTemps[0]);
       cambios.evidencia = this.moverFotoAPermanente(fotoTemps[1]);
     }
-     const actualizado = await this.repository.update(id, cambios as any);
+    const actualizado = await this.repository.update(id, cambios as any);
     this.logger.log(
       `Reporte ${id} editado por ${user.sub}: ${JSON.stringify(cambios)}`,
     );

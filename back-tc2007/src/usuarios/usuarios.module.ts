@@ -10,5 +10,6 @@ export { UsuariosService } from './usuarios.service';
   imports: [DatabaseModule, AuthModule],
   controllers: [UsuariosController],
   providers: [UsuariosService, UsuariosRepository],
+  exports: [UsuariosService],
 })
 export class UsuariosModule {}

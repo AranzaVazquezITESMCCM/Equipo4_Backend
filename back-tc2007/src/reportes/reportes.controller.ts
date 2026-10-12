@@ -185,26 +185,26 @@ export class ReportesController {
  * Devuelve UsuarioResponseDto, que ya excluye contrasena y salt.
  */
 @ApiOperation({ summary: 'Obtener datos del autor de un reporte (solo admin)' })
-@ApiParam({ name: 'id', type: Number })
-@ApiOkResponse({ type: UsuarioResponseDto })
-@Get(':id/autor')
-@UseGuards(AdminGuard)
-async findAutor(
-  @CurrentUser() user: JwtPayload,
-  @Param('id', ParseIntPipe) id: number,
-): Promise<UsuarioResponseDto> {
-  const reporte = await this.service.findOne(id, user);
-  return this.usuariosService.findOne(reporte.usuarioId);
-}
+  @ApiParam({ name: 'id', type: String, description: 'UUID del reporte' })
+  @ApiOkResponse({ type: UsuarioResponseDto })
+  @Get(':id/autor')
+  @UseGuards(AdminGuard)
+  async findAutor(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+  ): Promise<UsuarioResponseDto> {
+    const reporte = await this.service.findOne(id, user); // <-- Pasada la variable id
+    return this.usuariosService.findOne(reporte.usuarioId);
+  }
 
   /** Obtiene un reporte por id. 404 si no existe o está borrado. */
-  @ApiOperation({ summary: 'Obtener un reporte por id' })
-  @ApiParam({ name: 'id', type: Number })
+@ApiOperation({ summary: 'Obtener un reporte por id' })
+  @ApiParam({ name: 'id', type: String, description: 'UUID del reporte' })
   @ApiOkResponse({ type: ReporteResponseDto })
   @Get(':id')
   findOne(
     @CurrentUser() user: JwtPayload,
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
   ): Promise<ReporteResponseDto> {
     return this.service.findOne(id, user);
   }
@@ -215,14 +215,14 @@ async findAutor(
    * es la forma de mover un reporte de "Pendiente" a otro estado
    * (ej. "En revisión", "Verificado").
    */
-  @ApiOperation({ summary: 'Actualizar un reporte' })
-  @ApiParam({ name: 'id', type: Number })
+@ApiOperation({ summary: 'Actualizar un reporte' })
+  @ApiParam({ name: 'id', type: String, description: 'UUID del reporte' }) // <-- Cambiar type: Number por type: String
   @ApiOkResponse({ type: ReporteResponseDto })
   @Patch(':id')
   @UseGuards(AdminGuard)
   update(
     @CurrentUser() user: JwtPayload,
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Body() dto: UpdateReporteDto,
   ): Promise<ReporteResponseDto> {
     return this.service.update(id, dto, user);
