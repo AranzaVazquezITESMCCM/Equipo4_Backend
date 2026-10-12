@@ -113,3 +113,5 @@ INSERT INTO tipo_fraude (nombre) VALUES
 ('Fotos falsas o engañosas'),
 ('Doble reservación'),
 ('Solicitud de depósito fraudulento');
+
+ALTER TABLE recovery_code MODIFY COLUMN id VARCHAR(36) NOT NULL;

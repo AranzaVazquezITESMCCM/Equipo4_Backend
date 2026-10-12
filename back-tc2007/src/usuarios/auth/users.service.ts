@@ -11,6 +11,9 @@ import { sign, verify } from './jwt';
 import { UsersRepository } from './users.repository';
 import { randomInt } from 'node:crypto';
 import * as nodemailer from 'nodemailer';
+import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
+
 
 const ACCESS_TTL = 15 * 60; // 15 minutos
 const REFRESH_TTL = 7 * 24 * 60 * 60; // 7 días
@@ -131,4 +134,43 @@ export class AuthService {
       message: 'Se generó el código de recuperación',
     };
   }
+
+async verifyCode(correo: string, codigo: string): Promise<{ message: string }> {
+  const user = await this.users.findByEmail(correo);
+  if (!user) {
+    throw new UnauthorizedException('Código inválido');
+  }
+  const recovery = await this.users.findRecoveryCode(user.id!, codigo);
+if (!recovery || recovery.usado) {
+  throw new UnauthorizedException('Código inválido o ya utilizado');
+}
+  return { message: 'Código válido' };
+}
+
+async resetPassword(dto: { correo: string; codigo: string; nuevaContrasena: string }) {
+  // 1. Buscar usuario
+  const user = await this.users.findByEmail(dto.correo);
+  if (!user) {
+    throw new UnauthorizedException('El correo o código es inválido');
+  }
+
+  // 2. Buscar y validar código de recuperación activo
+  const recovery = await this.users.findRecoveryCode(user.id!, dto.codigo);
+  
+  if (!recovery || Boolean(recovery.usado) || new Date() > new Date(recovery.expira_en)) {
+    throw new UnauthorizedException('El código es incorrecto o ya expiró');
+  }
+
+  // 3. Marcar código como usado
+  await this.users.useRecoveryCode(recovery.id);
+
+  // 4. Generar salt y hash usando las utilidades nativas
+  const newSalt = generateSalt();
+  const newHash = hashPassword(dto.nuevaContrasena, newSalt);
+
+  // 5. Actualizar ambos valores en la base de datos
+  await this.users.updatePassword(user.id!, newHash, newSalt);
+
+  return { message: 'Contraseña actualizada correctamente' };
+}
 }
