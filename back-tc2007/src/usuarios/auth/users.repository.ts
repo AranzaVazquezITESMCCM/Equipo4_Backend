@@ -192,21 +192,6 @@ async useRecoveryCode(id: string | number): Promise<void> {
   async updatePassword(usuarioId: string, contrasena: string, salt: string): Promise<void> {
     await this.pool.query(
       `UPDATE usuario
-       SET contrasena = ?, salt = ?
-       WHERE id = ?`,
-      [contrasena, salt, usuarioId],
-    );
-  }
-
-  /**
-   * Reemplaza el hash y el salt de un usuario. Ambos se actualizan
-   * juntos porque el hash solo es verificable con su propio salt.
-   * No filtra por `deleted_at`; la existencia del usuario se valida
-   * antes en el servicio.
-   */
-  async updatePassword(usuarioId: string, contrasena: string, salt: string): Promise<void> {
-    await this.pool.query(
-      `UPDATE usuario
       SET contrasena = ?, salt = ?
       WHERE id = ?`,
       [contrasena, salt, usuarioId],
