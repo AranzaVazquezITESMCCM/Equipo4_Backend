@@ -26,6 +26,7 @@ export interface JwtPayload {
     /** Id del usuario (claim estándar "subject"). */
     sub: string;
     email: string;
+    rol?: string;
     /**
      * Distingue access tokens de refresh tokens. Ambos se firman igual,
      * así que quien consume el token debe revisar este campo para no

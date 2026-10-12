@@ -242,7 +242,7 @@ export class ReportesRepository {
   }
 
   /** Marca `deleted_at = NOW()`. Devuelve `false` si el reporte no existía o ya estaba borrado. */
-  async softDelete(id: number): Promise<boolean> {
+  async softDelete(id: string): Promise<boolean> {
     const [result] = await this.pool.query<ResultSetHeader>(
       `UPDATE reporte SET deleted_at = NOW() WHERE id = ? AND deleted_at IS NULL`,
       [id],

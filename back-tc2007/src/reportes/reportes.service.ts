@@ -3,6 +3,7 @@ import {
   Logger,
   Injectable,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { existsSync, renameSync } from 'node:fs';
@@ -153,7 +154,7 @@ export class ReportesService {
    * @throws NotFoundException si el reporte no existe.
    */
 async update(
-    id: string, // <-- 'string' en minúscula (tipo primitivo)
+    id: string,
     changes: UpdateReporteDto,
     user: JwtPayload,
   ): Promise<ReporteResponseDto> {
@@ -161,16 +162,25 @@ async update(
     if (!existe) {
       throw new NotFoundException(`Reporte ${id} no encontrado`);
     }
+
+    // Usar ROLES_ADMIN y user.rolId de la interfaz JwtPayload
+    const esAdmin = ROLES_ADMIN.includes(user.rolId);
+
+    // 1. Validar propiedad: Si NO es el creador Y NO es admin -> 403
+    if (existe.usuarioId !== user.sub && !esAdmin) {
+      throw new ForbiddenException('No tienes permiso para editar este reporte.');
+    }
+
+    // 2. Validar estado editable
     if (!ESTADOS_EDITABLES_ADMIN.includes(existe.estadoId)) {
       throw new BadRequestException(
         'Solo se pueden editar reportes "En revisión" o "Fraude confirmado"',
       );
     }
-    // `fotoTemp` no es una columna real (ver CreateReporteDto): si viene,
-    // se traduce a `foto` moviendo el archivo de temporales a definitivo,
-    // igual que en `create`.
+
     const { fotoTemps, ...resto } = changes;
     const cambios: Partial<UpdateReporteDto> & {portada?: string; evidencia?: string} = resto;
+    
     if (fotoTemps) {
       if (fotoTemps.length !== 2) {
         throw new BadRequestException(
@@ -180,6 +190,7 @@ async update(
       cambios.portada = this.moverFotoAPermanente(fotoTemps[0]);
       cambios.evidencia = this.moverFotoAPermanente(fotoTemps[1]);
     }
+
     const actualizado = await this.repository.update(id, cambios as any);
     this.logger.log(
       `Reporte ${id} editado por ${user.sub}: ${JSON.stringify(cambios)}`,
@@ -191,7 +202,7 @@ async update(
    * Borra lógicamente un reporte (`deleted_at = NOW()`).
    * @throws NotFoundException si no existe o ya estaba borrado.
    */
-  async remove(id: number): Promise<void> {
+  async remove(id: string): Promise<void> {
     const borrado = await this.repository.softDelete(id);
     if (!borrado) {
       throw new NotFoundException(`Reporte ${id} no encontrado`);
