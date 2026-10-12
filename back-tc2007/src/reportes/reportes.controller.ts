@@ -39,6 +39,7 @@ import { FOTOS_TMP_DIR } from './uploads.paths';
 import { AdminGuard } from 'src/usuarios/auth/admin.guard';
 import { UsuariosService } from '../usuarios/usuarios.service';
 import { UsuarioResponseDto } from '../usuarios/dto/usuario-response.dto';
+import { User } from 'src/usuarios/auth/entities/user.entity';
 
 /**
  * CRUD de reportes de fraude (`/reportes`). Requiere Bearer token.
@@ -219,7 +220,7 @@ export class ReportesController {
   @ApiParam({ name: 'id', type: String, description: 'UUID del reporte' }) // <-- Cambiar type: Number por type: String
   @ApiOkResponse({ type: ReporteResponseDto })
   @Patch(':id')
-  @UseGuards(AdminGuard)
+  @UseGuards(AuthGuard)
   update(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
@@ -229,12 +230,14 @@ export class ReportesController {
   }
 
   /** Borra lógicamente un reporte (`deleted_at = NOW()`). */
-  @ApiOperation({ summary: 'Eliminar un reporte (borrado lógico)' })
-  @ApiParam({ name: 'id', type: Number })
-  @ApiNoContentResponse()
+@ApiOperation({ summary: 'Eliminar un reporte' })
+  @ApiParam({ name: 'id', type: String, description: 'UUID del reporte' })
   @Delete(':id')
-  @HttpCode(204)
-  remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
-    return this.service.remove(id);
+  @UseGuards(AuthGuard)
+  async remove(
+    @Param('id') id: string,
+  ): Promise<{ message: string }> {
+    await this.service.remove(id); // <-- Pasamos solo el 'id'
+    return { message: 'Reporte eliminado correctamente' };
   }
 }

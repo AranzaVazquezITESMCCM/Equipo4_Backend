@@ -1,19 +1,37 @@
-import { ApiProperty, PartialType } from '@nestjs/swagger';
-import { IsInt, IsOptional } from 'class-validator';
+import { PartialType } from '@nestjs/mapped-types';
 import { CreateReporteDto } from './create-reporte.dto';
+import { IsOptional, IsString, IsNumber, IsInt } from 'class-validator';
 
-/**
- * Datos para actualizar un reporte vía `PATCH /reportes/:id`.
- *
- * Todos los campos de {@link CreateReporteDto} se vuelven opcionales.
- * `estadoId` se agrega aparte (no vive en `CreateReporteDto`) porque
- * solo tiene sentido al actualizar: mover un reporte ya existente de
- * "Pendiente" a "En revisión", "Verificado", etc.
- */
 export class UpdateReporteDto extends PartialType(CreateReporteDto) {
-  /** FK hacia `estado.id`. Cambia el estado del reporte (ej. de "Pendiente" a "En revisión"). */
-  @ApiProperty({ example: 2, required: false })
+  @IsOptional()
+  @IsString()
+  nombre?: string;
+
+  @IsOptional()
+  @IsString()
+  descripcion?: string;
+
   @IsOptional()
   @IsInt()
-  estadoId?: number;
+  fuenteId?: number;
+
+  @IsOptional()
+  @IsInt()
+  tipoPropiedadId?: number;
+
+  @IsOptional()
+  @IsInt()
+  tipoFraudeId?: number;
+
+  @IsOptional()
+  @IsNumber()
+  precio?: number;
+
+  @IsOptional()
+  @IsString()
+  zona?: string;
+
+  @IsOptional()
+  @IsString()
+  contactoOfertante?: string;
 }
