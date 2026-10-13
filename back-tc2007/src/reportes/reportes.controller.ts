@@ -229,15 +229,15 @@ export class ReportesController {
     return this.service.update(id, dto, user);
   }
 
-  /** Borra lógicamente un reporte (`deleted_at = NOW()`). */
-@ApiOperation({ summary: 'Eliminar un reporte' })
+    /** Borra lógicamente un reporte (`deleted_at = NOW()`). */
+  @ApiOperation({ summary: 'Eliminar un reporte' })
   @ApiParam({ name: 'id', type: String, description: 'UUID del reporte' })
   @Delete(':id')
   @UseGuards(AuthGuard)
   async remove(
+    @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
   ): Promise<{ message: string }> {
-    await this.service.remove(id); // <-- Pasamos solo el 'id'
+    await this.service.remove(id, user);
     return { message: 'Reporte eliminado correctamente' };
   }
-}

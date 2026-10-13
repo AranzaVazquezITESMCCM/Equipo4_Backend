@@ -172,9 +172,9 @@ async update(
     }
 
     // 2. Validar estado editable
-    if (!ESTADOS_EDITABLES_ADMIN.includes(existe.estadoId)) {
+       if (!esAdmin && existe.estadoId !== ESTADO_EN_REVISION) {
       throw new BadRequestException(
-        'Solo se pueden editar reportes "En revisión" o "Fraude confirmado"',
+        'Solo puedes editar tu reporte mientras esté "En revisión"',
       );
     }
 
@@ -199,14 +199,28 @@ async update(
   }
 
   /**
-   * Borra lógicamente un reporte (`deleted_at = NOW()`).
-   * @throws NotFoundException si no existe o ya estaba borrado.
+   * Borra lógicamente un reporte.
+   * - Admin / super admin: cualquier reporte, en cualquier estado.
+   * - Usuario: solo los suyos y solo mientras estén "En revisión".
    */
-  async remove(id: string): Promise<void> {
-    const borrado = await this.repository.softDelete(id);
-    if (!borrado) {
+  async remove(id: string, user: JwtPayload): Promise<void> {
+    const existe = await this.repository.findById(id);
+    if (!existe) {
       throw new NotFoundException(`Reporte ${id} no encontrado`);
     }
+
+    const esAdmin = ROLES_ADMIN.includes(user.rolId);
+
+    if (!esAdmin && existe.usuarioId !== user.sub) {
+      throw new ForbiddenException('No tienes permiso para eliminar este reporte.');
+    }
+    if (!esAdmin && existe.estadoId !== ESTADO_EN_REVISION) {
+      throw new BadRequestException(
+        'Solo puedes eliminar tu reporte mientras esté "En revisión"',
+      );
+    }
+
+    await this.repository.softDelete(id);
   }
 
   /**
