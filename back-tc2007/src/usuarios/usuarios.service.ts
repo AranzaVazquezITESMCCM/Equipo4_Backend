@@ -43,8 +43,7 @@ export class UsuariosService {
     if (!existe) {
       throw new NotFoundException(`Usuario ${id} no encontrado`);
     }
-    const cambios: any = { ...changes };
-    const actualizado = await this.repository.update(id, cambios);
+    const actualizado = await this.repository.update(id, { ...changes });
     return UsuarioResponseDto.fromEntity(actualizado!);
   }
 

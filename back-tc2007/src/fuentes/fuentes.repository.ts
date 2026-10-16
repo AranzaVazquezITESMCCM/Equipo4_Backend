@@ -6,6 +6,12 @@ import { Fuente } from './entities/fuente.entity';
 
 const COLUMNS = 'id, tipo_fuente, valor_fuente';
 
+interface FuenteRow extends RowDataPacket {
+  id: number;
+  tipo_fuente: string;
+  valor_fuente: string;
+}
+
 /**
  * Acceso a datos de `fuente` (catálogo, sin borrado lógico). Todas
  * las queries son parametrizadas.
@@ -16,7 +22,7 @@ export class FuentesRepository {
 
   /** Lista todas las fuentes. */
   async findAll(): Promise<Fuente[]> {
-    const [rows] = await this.pool.query<RowDataPacket[]>(
+    const [rows] = await this.pool.query<FuenteRow[]>(
       `SELECT ${COLUMNS} FROM fuente ORDER BY id`,
     );
     return rows.map(toEntity);
@@ -24,7 +30,7 @@ export class FuentesRepository {
 
   /** Busca una fuente por id. `undefined` si no existe. */
   async findById(id: number): Promise<Fuente | undefined> {
-    const [rows] = await this.pool.query<RowDataPacket[]>(
+    const [rows] = await this.pool.query<FuenteRow[]>(
       `SELECT ${COLUMNS} FROM fuente WHERE id = ?`,
       [id],
     );
@@ -90,7 +96,7 @@ export class FuentesRepository {
 }
 
 /** Mapea una fila cruda de `mysql2` a {@link Fuente}. */
-function toEntity(row: any): Fuente {
+function toEntity(row: FuenteRow): Fuente {
   const fuente = new Fuente();
   fuente.id = row.id;
   fuente.tipoFuente = row.tipo_fuente;

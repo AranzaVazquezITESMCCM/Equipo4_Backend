@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { verify } from './jwt';
+import type { RequestConUsuario } from '../../common/request-con-usuario';
 
 /**
  * Exige un access token válido en el header
@@ -40,8 +41,8 @@ export class AuthGuard implements CanActivate {
    * tipo `access`.
    */
   canActivate(context: ExecutionContext): boolean {
-    const req = context.switchToHttp().getRequest();
-    const header: string = req.headers.authorization ?? '';
+    const req = context.switchToHttp().getRequest<RequestConUsuario>();
+    const header = req.headers.authorization ?? '';
 
     if (!header.startsWith('Bearer ')) {
       throw new UnauthorizedException('Falta el token');

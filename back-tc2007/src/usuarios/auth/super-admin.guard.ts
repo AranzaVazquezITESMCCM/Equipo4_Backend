@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
+import type { RequestConUsuario } from '../../common/request-con-usuario';
 
 /**
  * Restringe una ruta al rol de super administrador (`rolId = 3`).
@@ -32,7 +33,7 @@ export class SuperAdminGuard implements CanActivate {
    * @throws ForbiddenException si el usuario no es super administrador.
    */
   canActivate(context: ExecutionContext): boolean {
-    const req = context.switchToHttp().getRequest();
+    const req = context.switchToHttp().getRequest<RequestConUsuario>();
 
     // 3 = Super Admin
     if (req.user?.rolId !== 3) {

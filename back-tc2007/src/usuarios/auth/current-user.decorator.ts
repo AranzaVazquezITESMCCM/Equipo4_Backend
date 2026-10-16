@@ -1,5 +1,6 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { JwtPayload } from './jwt';
+import type { RequestConUsuario } from '../../common/request-con-usuario';
 
 /**
  * Decorador de parámetro que inyecta en el handler los claims del
@@ -25,6 +26,7 @@ import { JwtPayload } from './jwt';
  */
 export const CurrentUser = createParamDecorator(
   (_data: unknown, context: ExecutionContext): JwtPayload => {
-    return context.switchToHttp().getRequest().user;
+    return context.switchToHttp().getRequest<RequestConUsuario>()
+      .user as JwtPayload;
   },
 );

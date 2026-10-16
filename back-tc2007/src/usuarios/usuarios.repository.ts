@@ -8,6 +8,17 @@ import { Usuario } from './entities/usuario.entity';
 const COLUMNS =
   'id, correo, contrasena, salt, nombre, rol_id, created_at, deleted_at';
 
+interface UsuarioRow extends RowDataPacket {
+  id: string;
+  correo: string;
+  contrasena: string;
+  salt: string;
+  nombre: string;
+  rol_id: number;
+  created_at: Date;
+  deleted_at: Date | null;
+}
+
 /**
  *
  * Aplica borrado lógico: toda lectura filtra `deleted_at IS NULL`.
@@ -18,7 +29,7 @@ export class UsuariosRepository {
 
   /** Lista los usuarios activos, ordenados por fecha de creación. */
   async findAll(): Promise<Usuario[]> {
-    const [rows] = await this.pool.query<RowDataPacket[]>(
+    const [rows] = await this.pool.query<UsuarioRow[]>(
       `SELECT ${COLUMNS} FROM usuario WHERE deleted_at IS NULL ORDER BY created_at`,
     );
     return rows.map(toEntity);
@@ -26,7 +37,7 @@ export class UsuariosRepository {
 
   /** Busca un usuario activo por id (UUID). `undefined` si no existe o está borrado. */
   async findById(id: string): Promise<Usuario | undefined> {
-    const [rows] = await this.pool.query<RowDataPacket[]>(
+    const [rows] = await this.pool.query<UsuarioRow[]>(
       `SELECT ${COLUMNS} FROM usuario WHERE id = ? AND deleted_at IS NULL`,
       [id],
     );
@@ -132,7 +143,7 @@ export class UsuariosRepository {
 }
 
 /** Mapea una fila cruda de `mysql2` (snake_case) a {@link Usuario}. */
-function toEntity(row: any): Usuario {
+function toEntity(row: UsuarioRow): Usuario {
   const usuario = new Usuario();
   usuario.id = row.id;
   usuario.correo = row.correo;

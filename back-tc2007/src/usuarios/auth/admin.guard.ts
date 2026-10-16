@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
+import type { RequestConUsuario } from '../../common/request-con-usuario';
 
 /**
  * Restringe una ruta a administradores: `rolId` 2 (Admin) o
@@ -26,7 +27,7 @@ export class AdminGuard implements CanActivate {
    * Super Admin.
    */
   canActivate(context: ExecutionContext): boolean {
-    const req = context.switchToHttp().getRequest();
+    const req = context.switchToHttp().getRequest<RequestConUsuario>();
 
     // 1 = User
     // 2 = Admin

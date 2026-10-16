@@ -6,6 +6,12 @@ import { Rol } from './entities/rol.entity';
 
 const COLUMNS = 'id, nombre, alias';
 
+interface RolRow extends RowDataPacket {
+  id: number;
+  nombre: string;
+  alias: string;
+}
+
 /**
  * Acceso a datos de `rol` (catálogo, sin borrado lógico — no tiene
  * columna `deleted_at`). Todas las queries son parametrizadas.
@@ -16,7 +22,7 @@ export class RolesRepository {
 
   /** Lista todos los roles. */
   async findAll(): Promise<Rol[]> {
-    const [rows] = await this.pool.query<RowDataPacket[]>(
+    const [rows] = await this.pool.query<RolRow[]>(
       `SELECT ${COLUMNS} FROM rol ORDER BY id`,
     );
     return rows.map(toEntity);
@@ -24,7 +30,7 @@ export class RolesRepository {
 
   /** Busca un rol por id. `undefined` si no existe. */
   async findById(id: number): Promise<Rol | undefined> {
-    const [rows] = await this.pool.query<RowDataPacket[]>(
+    const [rows] = await this.pool.query<RolRow[]>(
       `SELECT ${COLUMNS} FROM rol WHERE id = ?`,
       [id],
     );
@@ -92,7 +98,7 @@ export class RolesRepository {
 }
 
 /** Mapea una fila cruda de `mysql2` a {@link Rol}. */
-function toEntity(row: any): Rol {
+function toEntity(row: RolRow): Rol {
   const rol = new Rol();
   rol.id = row.id;
   rol.nombre = row.nombre;

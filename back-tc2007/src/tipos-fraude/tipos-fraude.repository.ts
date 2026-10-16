@@ -6,6 +6,11 @@ import { TipoFraude } from './entities/tipo-fraude.entity';
 
 const COLUMNS = 'id, nombre';
 
+interface TipoFraudeRow extends RowDataPacket {
+  id: number;
+  nombre: string;
+}
+
 /**
  * Acceso a datos de `tipo_fraude` (catálogo, sin borrado lógico).
  * Todas las queries son parametrizadas.
@@ -16,7 +21,7 @@ export class TiposFraudeRepository {
 
   /** Lista todos los tipos de fraude. */
   async findAll(): Promise<TipoFraude[]> {
-    const [rows] = await this.pool.query<RowDataPacket[]>(
+    const [rows] = await this.pool.query<TipoFraudeRow[]>(
       `SELECT ${COLUMNS} FROM tipo_fraude ORDER BY id`,
     );
     return rows.map(toEntity);
@@ -24,7 +29,7 @@ export class TiposFraudeRepository {
 
   /** Busca un tipo de fraude por id. `undefined` si no existe. */
   async findById(id: number): Promise<TipoFraude | undefined> {
-    const [rows] = await this.pool.query<RowDataPacket[]>(
+    const [rows] = await this.pool.query<TipoFraudeRow[]>(
       `SELECT ${COLUMNS} FROM tipo_fraude WHERE id = ?`,
       [id],
     );
@@ -78,7 +83,7 @@ export class TiposFraudeRepository {
 }
 
 /** Mapea una fila cruda de `mysql2` a {@link TipoFraude}. */
-function toEntity(row: any): TipoFraude {
+function toEntity(row: TipoFraudeRow): TipoFraude {
   const tipo = new TipoFraude();
   tipo.id = row.id;
   tipo.nombre = row.nombre;

@@ -31,8 +31,6 @@ const ROLES_ADMIN = new Set([2, 3]);
  */
 const ESTADO_EN_REVISION = 1;
 const ESTADO_FRAUDE_CONFIRMADO = 2;
-/** Estados en los que un admin puede editar un reporte. */
-const ESTADOS_EDITABLES_ADMIN = [ESTADO_EN_REVISION, ESTADO_FRAUDE_CONFIRMADO];
 
 @Injectable()
 export class ReportesService {
@@ -71,11 +69,6 @@ export class ReportesService {
     usuarioId: string,
     data: CreateReporteDto,
   ): Promise<ReporteResponseDto> {
-    try {
-      if (data.longitud < -90 || data.longitud > 90) {
-        throw new BadRequestException('Latitud invalida');
-      }
-    } catch (e) {}
     if (data.fotoTemps.length !== 2) {
       throw new BadRequestException(
         'El reporte debe tener exactamente 2 fotos',

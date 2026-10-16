@@ -1,6 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Pool, RowDataPacket } from 'mysql2/promise';
-import { mysqlErrno } from '../common/mysql-error';
 import { DB_POOL } from '../database/database.module';
 import { ConteoDto, ConteoMesDto } from './dto/estadisticas.dto';
 
@@ -49,10 +48,14 @@ export class EstadisticasRepository {
        GROUP BY mes
        ORDER BY mes`,
     );
-    return rows.map((r) => ({ mes: r.mes, total: Number(r.total) }));
+    return rows.map((r) => ({ mes: String(r.mes), total: Number(r.total) }));
   }
 }
 
 function toConteo(row: RowDataPacket): ConteoDto {
-  return { id: row.id, nombre: row.nombre, total: Number(row.total) };
+  return {
+    id: Number(row.id),
+    nombre: String(row.nombre),
+    total: Number(row.total),
+  };
 }

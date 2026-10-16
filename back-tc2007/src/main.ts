@@ -4,6 +4,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { mkdirSync } from 'node:fs';
 import { AppModule } from './app.module';
+import type { Request, Response, NextFunction } from 'express';
 import {
   FOTOS_REPORTES_DIR,
   FOTOS_TMP_DIR,
@@ -20,10 +21,10 @@ loadEnvFile();
  */
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
-  app.use((req, res, next) => {
+  app.use((req: Request, res: Response, next: NextFunction) => {
     const start = Date.now();
-    const jsonOriginal = res.json.bind(res);
-    res.json = (body) => {
+    const jsonOriginal = res.json.bind(res) as (body: unknown) => Response;
+    res.json = (body: unknown) => {
       if (res.statusCode >= 400) {
         Logger.warn(`Body recibido: ${JSON.stringify(req.body)}`, 'HTTP');
         Logger.warn(`Respuesta: ${JSON.stringify(body)}`, 'HTTP');
@@ -38,6 +39,7 @@ async function bootstrap() {
     });
     next();
   });
+
   app.useGlobalPipes(new ValidationPipe());
 
   // `diskStorage` (multer) no crea carpetas de destino por su cuenta:

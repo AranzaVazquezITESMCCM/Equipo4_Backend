@@ -13,6 +13,30 @@ import { randomUUID } from 'node:crypto';
 const COLUMNS =
   'id, correo, contrasena, salt, nombre, created_at, rol_id, deleted_at';
 
+interface UserRow extends RowDataPacket {
+  id: string;
+  correo: string;
+  contrasena: string;
+  salt: string;
+  nombre: string;
+  created_at: Date;
+  rol_id: number;
+}
+
+interface RecoveryCodeRow extends RowDataPacket {
+  id: string;
+  usuario_id: string;
+  codigo: string;
+  expira_en: Date;
+  usado: number | boolean;
+}
+export interface PendingAdminRow extends RowDataPacket {
+  id: string;
+  correo: string;
+  nombre: string;
+  created_at: Date;
+}
+
 /**
  * Acceso a datos para el flujo de autenticación. Opera sobre la
  * misma tabla `usuario` que {@link UsuariosRepository}
@@ -40,7 +64,7 @@ export class UsersRepository {
    * duplicados en registro.
    */
   async findByEmail(correo: string): Promise<User | undefined> {
-    const [rows] = await this.pool.query<RowDataPacket[]>(
+    const [rows] = await this.pool.query<UserRow[]>(
       `SELECT ${COLUMNS}
              FROM usuario
              WHERE correo = ?
@@ -99,8 +123,8 @@ export class UsersRepository {
    * activas. Devuelve filas crudas, no entidades, y solo con los
    * campos que necesita el dashboard: nunca expone hash ni salt.
    */
-  async findPendingAdmins() {
-    const [rows] = await this.pool.query<RowDataPacket[]>(
+  async findPendingAdmins(): Promise<PendingAdminRow[]> {
+    const [rows] = await this.pool.query<PendingAdminRow[]>(
       `SELECT id, correo, nombre, created_at
       FROM usuario
       WHERE rol_id = 4
@@ -156,7 +180,7 @@ export class UsersRepository {
       `SELECT rol_id FROM usuario WHERE id = ? AND deleted_at IS NULL`,
       [id],
     );
-    return rows[0]?.rol_id;
+    return rows[0]?.rol_id as number | undefined;
   }
 
   /** Número de super admins activos. */
@@ -172,7 +196,7 @@ export class UsersRepository {
    * releer la fila recién insertada en {@link save} y {@link saveAdmin}.
    */
   async findById(id: string): Promise<User | undefined> {
-    const [rows] = await this.pool.query<RowDataPacket[]>(
+    const [rows] = await this.pool.query<UserRow[]>(
       `SELECT ${COLUMNS} FROM usuario WHERE id = ? AND deleted_at IS NULL`,
       [id],
     );
@@ -212,16 +236,19 @@ export class UsersRepository {
    * Busca un código de recuperación no usado que coincida con el usuario y el código.
    * La comparación es case-sensitive usando BINARY.
    */
-  async findRecoveryCode(usuarioId: string, codigo: string) {
-    const [rows]: any = await this.pool.query(
-      `SELECT * FROM recovery_code 
-       WHERE usuario_id = ? 
-         AND codigo = BINARY ? 
-         AND usado = FALSE 
+  async findRecoveryCode(
+    usuarioId: string,
+    codigo: string,
+  ): Promise<RecoveryCodeRow | null> {
+    const [rows] = await this.pool.query<RecoveryCodeRow[]>(
+      `SELECT * FROM recovery_code
+       WHERE usuario_id = ?
+         AND codigo = BINARY ?
+         AND usado = FALSE
        LIMIT 1`,
       [usuarioId, codigo],
     );
-    return rows[0] || null;
+    return rows[0] ?? null;
   }
 
   /** Marca un código de recuperación como usado para que no se pueda reutilizar. */
@@ -257,7 +284,7 @@ export class UsersRepository {
  * {@link User}. Aunque {@link COLUMNS} lee `nombre` y `deleted_at`,
  * esos campos no se copian a la entidad.
  */
-function toEntity(row: any): User {
+function toEntity(row: UserRow): User {
   const user = new User();
 
   user.id = row.id;
