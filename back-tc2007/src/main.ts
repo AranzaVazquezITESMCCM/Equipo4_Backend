@@ -1,4 +1,4 @@
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -20,6 +20,21 @@ loadEnvFile();
  */
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  app.use((req, res, next) => {
+  const start = Date.now();
+  const jsonOriginal = res.json.bind(res);
+  res.json = (body) => {
+    if (res.statusCode >= 400) {
+      Logger.warn(`Body recibido: ${JSON.stringify(req.body)}`, 'HTTP');
+      Logger.warn(`Respuesta: ${JSON.stringify(body)}`, 'HTTP');
+    }
+    return jsonOriginal(body);
+  };
+  res.on('finish', () => {
+    Logger.log(`${req.method} ${req.originalUrl} -> ${res.statusCode} (${Date.now() - start}ms)`, 'HTTP');
+  });
+  next();
+});
   app.useGlobalPipes(new ValidationPipe());
 
   // `diskStorage` (multer) no crea carpetas de destino por su cuenta:
@@ -55,7 +70,12 @@ async function bootstrap() {
 
   await app.listen(process.env.PORT ?? 3000);
 }
+<<<<<<< HEAD
 bootstrap().catch((err) => {
   console.error('Error al iniciar la API:', err);
   process.exit(1);
 });
+=======
+bootstrap();
+ 
+>>>>>>> 8f201709bcc47577a1658494e75d9e86e952760d
