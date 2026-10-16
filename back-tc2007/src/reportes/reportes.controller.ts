@@ -9,6 +9,7 @@ import {
   Post,
   UseGuards,
   UseInterceptors,
+  BadRequestException,
   UploadedFiles,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
@@ -99,13 +100,23 @@ export class ReportesController {
         fileSize: 5 * 1024 * 1024,
       },
       fileFilter: (_req, file, callback) => {
+        // El mimetype lo manda el cliente y se puede falsificar, así que
+        // también se revisa la extensión (un `hola.html` con mimetype
+        // image/png no pasa). BadRequestException para responder 400 y no 500.
         const tiposPermitidos = ['image/jpeg', 'image/png', 'image/webp'];
+        const extensionesPermitidas = ['.jpg', '.jpeg', '.png', '.webp'];
+        const extension = extname(file.originalname).toLowerCase();
 
-        if (tiposPermitidos.includes(file.mimetype)) {
+        if (
+          tiposPermitidos.includes(file.mimetype) &&
+          extensionesPermitidas.includes(extension)
+        ) {
           callback(null, true);
         } else {
           callback(
-            new Error('Solo se permiten imágenes JPG, PNG o WEBP'),
+            new BadRequestException(
+              'Solo se permiten imágenes JPG, PNG o WEBP',
+            ),
             false,
           );
         }

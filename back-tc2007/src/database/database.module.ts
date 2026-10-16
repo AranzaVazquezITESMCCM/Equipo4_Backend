@@ -6,16 +6,20 @@ import type { Pool } from 'mysql2/promise';
 export const DB_POOL = 'DB_POOL';
 
 /**
- * Cadena de conexión a MySQL.
+ * Cadena de conexión a MySQL. Se lee de la variable de entorno
+ * `DATABASE_URL` (archivo `.env`, que no se sube al repo) para no
+ * publicar usuario y contraseña. Usar un usuario de MySQL propio de la
+ * app con permisos solo sobre `fraud2`, no `root`.
  *
- * Nota de documentación: está hardcodeada (usuario/contraseña/host
- * incluidos). En un ambiente real debería venir de una variable de
- * entorno (`process.env.DATABASE_URL`) para no exponer credenciales
- * en el repositorio ni forzar el mismo servidor en todos los ambientes.
+ *
  */
-//const DATABASE_URL = 'mysql://fraud_api:12345@192.168.10.10:3306/fraud2';
-const DATABASE_URL = 'mysql://root:12345@localhost:3306/fraud2';
-
+function getDatabaseUrl(): string {
+  const url = process.env.DATABASE_URL;
+  if (!url) {
+    throw new Error('Falta la variable de entorno DATABASE_URL');
+  }
+  return url;
+}
 /**
  * Módulo global de acceso a base de datos. Expone un único pool de
  * conexiones (`mysql2/promise`, sin ORM) bajo el token {@link DB_POOL},
@@ -27,8 +31,7 @@ const DATABASE_URL = 'mysql://root:12345@localhost:3306/fraud2';
     {
       provide: DB_POOL,
       useFactory: () => {
-        console.log('Conectando a ' + DATABASE_URL);
-        return createPool({ uri: DATABASE_URL });
+        return createPool({ uri: getDatabaseUrl() });
       },
     },
   ],

@@ -19,6 +19,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { AuthGuard } from '../usuarios/auth/auth.guard';
+import { AdminGuard } from '../usuarios/auth/admin.guard';
 import { TiposFraudeService } from './tipos-fraude.service';
 import { TipoFraudeResponseDto } from './dto/tipo-fraude-response.dto';
 import { CreateTipoFraudeDto } from './dto/create-tipo-fraude.dto';
@@ -36,6 +37,7 @@ export class TiposFraudeController {
   @ApiOperation({ summary: 'Crear un tipo de fraude' })
   @ApiOkResponse({ type: TipoFraudeResponseDto })
   @Post()
+  @UseGuards(AdminGuard)
   create(@Body() dto: CreateTipoFraudeDto): Promise<TipoFraudeResponseDto> {
     return this.service.create(dto);
   }
@@ -64,6 +66,7 @@ export class TiposFraudeController {
   @ApiParam({ name: 'id', type: Number })
   @ApiOkResponse({ type: TipoFraudeResponseDto })
   @Patch(':id')
+  @UseGuards(AdminGuard)
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateTipoFraudeDto,
@@ -76,6 +79,7 @@ export class TiposFraudeController {
   @ApiParam({ name: 'id', type: Number })
   @ApiNoContentResponse()
   @Delete(':id')
+  @UseGuards(AdminGuard)
   @HttpCode(204)
   remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
     return this.service.remove(id);

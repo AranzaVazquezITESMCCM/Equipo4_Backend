@@ -19,6 +19,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { AuthGuard } from '../usuarios/auth/auth.guard';
+import { AdminGuard } from '../usuarios/auth/admin.guard';
 import { EstadosService } from './estados.service';
 import { EstadoResponseDto } from './dto/estado-response.dto';
 import { CreateEstadoDto } from './dto/create-estado.dto';
@@ -36,6 +37,7 @@ export class EstadosController {
   @ApiOperation({ summary: 'Crear un estado' })
   @ApiOkResponse({ type: EstadoResponseDto })
   @Post()
+  @UseGuards(AdminGuard)
   create(@Body() dto: CreateEstadoDto): Promise<EstadoResponseDto> {
     return this.service.create(dto);
   }
@@ -62,6 +64,7 @@ export class EstadosController {
   @ApiParam({ name: 'id', type: Number })
   @ApiOkResponse({ type: EstadoResponseDto })
   @Patch(':id')
+  @UseGuards(AdminGuard)
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateEstadoDto,
@@ -74,6 +77,7 @@ export class EstadosController {
   @ApiParam({ name: 'id', type: Number })
   @ApiNoContentResponse()
   @Delete(':id')
+  @UseGuards(AdminGuard)
   @HttpCode(204)
   remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
     return this.service.remove(id);

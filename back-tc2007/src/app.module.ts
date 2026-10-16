@@ -9,6 +9,8 @@ import { TiposPropiedadModule } from './tipos-propiedad/tipos-propiedad.module';
 import { TiposFraudeModule } from './tipos-fraude/tipos-fraude.module';
 import { ReportesModule } from './reportes/reportes.module';
 import { EstadisticasModule } from './estadisticas/estadisticas.module';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 /**
  * Módulo raíz. Agrupa el módulo de usuarios/autenticación (`UsuariosModule`,
@@ -25,8 +27,10 @@ import { EstadisticasModule } from './estadisticas/estadisticas.module';
     TiposFraudeModule,
     ReportesModule,
     EstadisticasModule,
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
+    UsuariosModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

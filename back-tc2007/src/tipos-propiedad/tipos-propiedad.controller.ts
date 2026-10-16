@@ -19,6 +19,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { AuthGuard } from '../usuarios/auth/auth.guard';
+import { AdminGuard } from '../usuarios/auth/admin.guard';
 import { TiposPropiedadService } from './tipos-propiedad.service';
 import { TipoPropiedadResponseDto } from './dto/tipo-propiedad-response.dto';
 import { CreateTipoPropiedadDto } from './dto/create-tipo-propiedad.dto';
@@ -36,6 +37,7 @@ export class TiposPropiedadController {
   @ApiOperation({ summary: 'Crear un tipo de propiedad' })
   @ApiOkResponse({ type: TipoPropiedadResponseDto })
   @Post()
+  @UseGuards(AdminGuard)
   create(
     @Body() dto: CreateTipoPropiedadDto,
   ): Promise<TipoPropiedadResponseDto> {
@@ -66,6 +68,7 @@ export class TiposPropiedadController {
   @ApiParam({ name: 'id', type: Number })
   @ApiOkResponse({ type: TipoPropiedadResponseDto })
   @Patch(':id')
+  @UseGuards(AdminGuard)
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateTipoPropiedadDto,
@@ -78,6 +81,7 @@ export class TiposPropiedadController {
   @ApiParam({ name: 'id', type: Number })
   @ApiNoContentResponse()
   @Delete(':id')
+  @UseGuards(AdminGuard)
   @HttpCode(204)
   remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
     return this.service.remove(id);

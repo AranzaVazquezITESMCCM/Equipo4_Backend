@@ -4,6 +4,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { mkdirSync } from 'node:fs';
 import { AppModule } from './app.module';
+import helmet from 'helmet';
 import type { Request, Response, NextFunction } from 'express';
 import {
   FOTOS_REPORTES_DIR,
@@ -21,16 +22,10 @@ loadEnvFile();
  */
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // Log de cada petición: método, ruta, status y duración. No se
+  // registra el body: en /auth/login trae la contraseña en texto plano.
   app.use((req: Request, res: Response, next: NextFunction) => {
     const start = Date.now();
-    const jsonOriginal = res.json.bind(res) as (body: unknown) => Response;
-    res.json = (body: unknown) => {
-      if (res.statusCode >= 400) {
-        Logger.warn(`Body recibido: ${JSON.stringify(req.body)}`, 'HTTP');
-        Logger.warn(`Respuesta: ${JSON.stringify(body)}`, 'HTTP');
-      }
-      return jsonOriginal(body);
-    };
     res.on('finish', () => {
       Logger.log(
         `${req.method} ${req.originalUrl} -> ${res.statusCode} (${Date.now() - start}ms)`,
@@ -40,7 +35,22 @@ async function bootstrap() {
     next();
   });
 
-  app.useGlobalPipes(new ValidationPipe());
+  // Cabeceras de seguridad (nosniff, HSTS, frameguard, etc.).
+  // crossOriginResourcePolicy en 'cross-origin' para que el dashboard,
+  // que corre en otro origen, pueda mostrar las fotos de /uploads.
+  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+
+  // Solo los orígenes listados en FRONT_URL (separados por coma) pueden
+  // llamar a la API desde un navegador. Sin la variable, solo localhost:3001.
+  app.enableCors({
+    origin: (process.env.FRONT_URL ?? 'http://localhost:3001').split(','),
+  });
+
+  // whitelist quita los campos que no están en el DTO y
+  // forbidNonWhitelisted responde 400 si llegan, en vez de ignorarlos.
+  app.useGlobalPipes(
+    new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
+  );
 
   // `diskStorage` (multer) no crea carpetas de destino por su cuenta:
   // hay que asegurarlas antes de que llegue el primer upload.
@@ -70,12 +80,18 @@ async function bootstrap() {
     )
     .build();
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+  // La documentación solo se publica fuera de producción.
+  if (process.env.NODE_ENV !== 'production') {
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api', app, document);
+  }
 
   await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap().catch((err) => {
-  console.error('Error al iniciar la API:', err);
+bootstrap().catch((err: unknown) => {
+  Logger.error(
+    `Error al iniciar la API: ${err instanceof Error ? err.message : String(err)}`,
+    'Bootstrap',
+  );
   process.exit(1);
 });

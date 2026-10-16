@@ -25,6 +25,8 @@ import { AuthService } from './users.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { Throttle } from '@nestjs/throttler';
 
 /**
  * Autenticación y alta de cuentas (`/auth`).
@@ -133,6 +135,7 @@ export class AuthController {
   @ApiOkResponse({
     description: 'Credenciales válidas; devuelve los tokens de sesión.',
   })
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('login')
   @HttpCode(200)
   login(@Body() dto: LoginDto) {
@@ -148,6 +151,7 @@ export class AuthController {
   @ApiOkResponse({
     description: 'Credenciales válidas; devuelve los tokens de sesión.',
   })
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('admin-login')
   @HttpCode(200)
   adminLogin(@Body() dto: LoginDto) {
@@ -183,6 +187,7 @@ export class AuthController {
     },
   })
   @ApiOkResponse({ description: 'Solicitud procesada.' })
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('forgot-password')
   @HttpCode(200)
   forgotPassword(@Body() dto: { correo: string }) {
@@ -201,19 +206,17 @@ export class AuthController {
     },
   })
   @ApiOkResponse({ description: 'Código válido.' })
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('verify-code')
   @HttpCode(200)
   verifyCode(@Body() dto: { correo: string; codigo: string }) {
     return this.service.verifyCode(dto.correo, dto.codigo);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('reset-password')
   @HttpCode(200)
-  async resetPassword(
-    @Body() body: { correo: string; codigo: string; nuevaContrasena: string },
-  ) {
-    // Si en tu constructor se llama 'authService', usa this.authService.resetPassword
-    // Si en tu constructor se llama 'service', usa this.service.resetPassword
+  async resetPassword(@Body() body: ResetPasswordDto) {
     return this.service.resetPassword(body);
   }
 }

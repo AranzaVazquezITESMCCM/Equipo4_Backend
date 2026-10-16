@@ -24,6 +24,9 @@ import { UsuariosService } from './usuarios.service';
 import { UsuarioResponseDto } from './dto/usuario-response.dto';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
+import { AdminGuard } from './auth/admin.guard';
+import { SuperAdminGuard } from './auth/super-admin.guard';
+import { UpdateMyProfileDto } from './dto/update-profile.dto';
 
 /**
  * CRUD administrativo de usuarios (`/usuarios`).
@@ -49,6 +52,7 @@ export class UsuariosController {
   @ApiOperation({ summary: 'Crear un usuario' })
   @ApiOkResponse({ type: UsuarioResponseDto })
   @Post()
+  @UseGuards(SuperAdminGuard)
   create(
     @CurrentUser() user: JwtPayload,
     @Body() dto: CreateUsuarioDto,
@@ -60,6 +64,7 @@ export class UsuariosController {
   @ApiOperation({ summary: 'Listar usuarios' })
   @ApiOkResponse({ type: UsuarioResponseDto, isArray: true })
   @Get()
+  @UseGuards(AdminGuard)
   findAll(): Promise<UsuarioResponseDto[]> {
     return this.service.findAll();
   }
@@ -69,6 +74,7 @@ export class UsuariosController {
   @ApiParam({ name: 'id', type: String, description: 'UUID del usuario' })
   @ApiOkResponse({ type: UsuarioResponseDto })
   @Get(':id')
+  @UseGuards(AdminGuard)
   findOne(@Param('id') id: string): Promise<UsuarioResponseDto> {
     return this.service.findOne(id);
   }
@@ -81,6 +87,7 @@ export class UsuariosController {
   @ApiParam({ name: 'id', type: String, description: 'UUID del usuario' })
   @ApiOkResponse({ type: UsuarioResponseDto })
   @Patch(':id')
+  @UseGuards(SuperAdminGuard)
   update(
     @Param('id') id: string,
     @Body() dto: UpdateUsuarioDto,
@@ -93,8 +100,28 @@ export class UsuariosController {
   @ApiParam({ name: 'id', type: String, description: 'UUID del usuario' })
   @ApiNoContentResponse()
   @Delete(':id')
+  @UseGuards(AdminGuard)
   @HttpCode(204)
   remove(@Param('id') id: string): Promise<void> {
     return this.service.remove(id);
+  }
+
+    /** Perfil del usuario autenticado. Va antes de `:id` para que "me" no se tome como id. */
+  @ApiOperation({ summary: 'Ver mi perfil' })
+  @ApiOkResponse({ type: UsuarioResponseDto })
+  @Get('me')
+  findMe(@CurrentUser() user: JwtPayload): Promise<UsuarioResponseDto> {
+    return this.service.findMe(user.sub);
+  }
+
+  /** Edita nombre o correo del usuario autenticado; no permite cambiar el rol. */
+  @ApiOperation({ summary: 'Editar mi perfil' })
+  @ApiOkResponse({ type: UsuarioResponseDto })
+  @Patch('me')
+  updateMe(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: UpdateMyProfileDto,
+  ): Promise<UsuarioResponseDto> {
+    return this.service.updateMe(user.sub, dto);
   }
 }

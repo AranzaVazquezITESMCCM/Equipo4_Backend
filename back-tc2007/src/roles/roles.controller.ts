@@ -19,6 +19,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { AuthGuard } from '../usuarios/auth/auth.guard';
+import { AdminGuard } from '../usuarios/auth/admin.guard';
 import { RolesService } from './roles.service';
 import { RolResponseDto } from './dto/rol-response.dto';
 import { CreateRolDto } from './dto/create-rol.dto';
@@ -36,6 +37,7 @@ export class RolesController {
   @ApiOperation({ summary: 'Crear un rol' })
   @ApiOkResponse({ type: RolResponseDto })
   @Post()
+  @UseGuards(AdminGuard)
   create(@Body() dto: CreateRolDto): Promise<RolResponseDto> {
     return this.service.create(dto);
   }
@@ -62,6 +64,7 @@ export class RolesController {
   @ApiParam({ name: 'id', type: Number })
   @ApiOkResponse({ type: RolResponseDto })
   @Patch(':id')
+  @UseGuards(AdminGuard)
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateRolDto,
@@ -74,6 +77,7 @@ export class RolesController {
   @ApiParam({ name: 'id', type: Number })
   @ApiNoContentResponse()
   @Delete(':id')
+  @UseGuards(AdminGuard)
   @HttpCode(204)
   remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
     return this.service.remove(id);

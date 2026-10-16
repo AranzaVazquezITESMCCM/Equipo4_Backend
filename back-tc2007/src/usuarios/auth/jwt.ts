@@ -8,18 +8,18 @@
  * emitir y renovar tokens y {@link AuthGuard} para validarlos.
  */
 import { Buffer } from 'node:buffer';
-import { createHmac } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 
 /**
  * Secreto con el que se firman y verifican todos los tokens.
- *
- * Importante: está escrito directamente en el código. Cualquiera con
- * acceso al repositorio puede firmar tokens válidos con cualquier
- * `rolId`, incluido el de super administrador. Debe moverse a una
- * variable de entorno (como ya se hace con `GMAIL_USER`) y cambiarse
- * por un valor nuevo, ya que este ya quedó expuesto en el historial.
  */
-const SECRET = 'fraud2-secret-2026';
+function getSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('Falta la variable de entorno JWT_SECRET');
+  }
+  return secret;
+}
 
 /** Claims que viajan dentro de cada token emitido por {@link sign}. */
 export interface JwtPayload {
@@ -53,7 +53,7 @@ function b64url(json: object): string {
 
 /** Firma una cadena con HMAC-SHA256 y {@link SECRET}; devuelve base64url. */
 function hmac(data: string): string {
-  return createHmac('sha256', SECRET).update(data).digest('base64url');
+  return createHmac('sha256', getSecret()).update(data).digest('base64url');
 }
 
 /**
@@ -101,15 +101,28 @@ export function verify(token: string): JwtPayload | null {
     return null;
   }
 
-  if (hmac(`${header}.${body}`) !== signature) {
+  // Comparación en tiempo constante: con `!==` se puede adivinar la
+  // firma byte por byte midiendo cuánto tarda en responder.
+  const esperada = Buffer.from(hmac(`${header}.${body}`));
+  const recibida = Buffer.from(signature);
+  if (
+    esperada.length !== recibida.length ||
+    !timingSafeEqual(esperada, recibida)
+  ) {
     return null;
   }
 
-  const payload = JSON.parse(
-    Buffer.from(body, 'base64url').toString(),
-  ) as JwtPayload;
+  // Un body que no es JSON válido debe ser 401 (token inválido), no 500.
+  let payload: JwtPayload;
+  try {
+    payload = JSON.parse(
+      Buffer.from(body, 'base64url').toString(),
+    ) as JwtPayload;
+  } catch {
+    return null;
+  }
 
-  if (payload.exp < now()) {
+  if (typeof payload.exp !== 'number' || payload.exp < now()) {
     return null;
   }
 

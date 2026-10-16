@@ -19,6 +19,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { AuthGuard } from '../usuarios/auth/auth.guard';
+import { AdminGuard } from '../usuarios/auth/admin.guard';
 import { FuentesService } from './fuentes.service';
 import { FuenteResponseDto } from './dto/fuente-response.dto';
 import { CreateFuenteDto } from './dto/create-fuente.dto';
@@ -36,6 +37,7 @@ export class FuentesController {
   @ApiOperation({ summary: 'Crear una fuente' })
   @ApiOkResponse({ type: FuenteResponseDto })
   @Post()
+  @UseGuards(AdminGuard)
   create(@Body() dto: CreateFuenteDto): Promise<FuenteResponseDto> {
     return this.service.create(dto);
   }
@@ -62,6 +64,7 @@ export class FuentesController {
   @ApiParam({ name: 'id', type: Number })
   @ApiOkResponse({ type: FuenteResponseDto })
   @Patch(':id')
+  @UseGuards(AdminGuard)
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateFuenteDto,
@@ -74,6 +77,7 @@ export class FuentesController {
   @ApiParam({ name: 'id', type: Number })
   @ApiNoContentResponse()
   @Delete(':id')
+  @UseGuards(AdminGuard)
   @HttpCode(204)
   remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
     return this.service.remove(id);

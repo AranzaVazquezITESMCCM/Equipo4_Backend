@@ -124,16 +124,11 @@ export class AuthService {
   ): Promise<{ accessToken: string; refreshToken: string }> {
     const user = await this.users.findByEmail(dto.email!);
 
-    if (!user) {
-      throw new UnauthorizedException('El usuario no existe');
-    }
-
-    if (!verifyPassword(dto.password!, user.salt!, user.passwordHash!)) {
-      throw new UnauthorizedException('Password incorrecto');
-    }
-
-    if (!user) {
-      throw new UnauthorizedException('El usuario no existe');
+    if (
+      !user ||
+      !verifyPassword(dto.password!, user.salt!, user.passwordHash!)
+    ) {
+      throw new UnauthorizedException('Credenciales incorrectas');
     }
 
     if (user.rolId === 4) {
@@ -147,8 +142,6 @@ export class AuthService {
     const accessToken = sign({ ...claims, type: 'access' }, ACCESS_TTL);
 
     const refreshToken = sign({ ...claims, type: 'refresh' }, REFRESH_TTL);
-
-    console.log('Login de ' + user.email + ': ' + accessToken);
 
     return { accessToken, refreshToken };
   }
@@ -254,18 +247,23 @@ export class AuthService {
    * @throws UnauthorizedException si el token es inválido, expiró o no
    * es de tipo `refresh` (evita usar un access token para renovar).
    */
-  refresh(dto: RefreshDto): { accessToken: string } {
+  async refresh(dto: RefreshDto): Promise<{ accessToken: string }> {
     const payload = verify(dto.refreshToken!);
 
     if (!payload || payload.type !== 'refresh') {
       throw new UnauthorizedException('Refresh token inválido');
     }
 
+    const user = await this.users.findById(payload.sub);
+    if (!user || user.rolId === 4) {
+      throw new UnauthorizedException('Refresh token inválido');
+    }
+
     const accessToken = sign(
       {
-        sub: payload.sub,
-        email: payload.email,
-        rolId: payload.rolId,
+        sub: user.id!,
+        email: user.email!,
+        rolId: user.rolId!,
         type: 'access',
       },
       ACCESS_TTL,
@@ -286,12 +284,17 @@ export class AuthService {
    * @throws UnauthorizedException si el correo no está registrado.
    */
   async forgotPassword(email: string): Promise<{ message: string }> {
+    // Misma respuesta exista o no el correo, para no revelar cuáles
+    // están registrados.
+    const respuesta = {
+      message: 'Si el correo está registrado, te enviamos un código',
+    };
     const user = await this.users.findByEmail(email);
     if (!user) {
       this.auditoria.warn(
         `Solicitud de código FALLIDA: correo no registrado (${email})`,
       );
-      throw new UnauthorizedException('El usuario no existe');
+      return respuesta;
     }
     const caracteres = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
     let codigo = '';
@@ -310,9 +313,7 @@ export class AuthService {
     this.auditoria.log(
       `Código de recuperación enviado a ${email} (usuario ${user.id})`,
     );
-    return {
-      message: 'Se generó el código de recuperación',
-    };
+    return respuesta;
   }
 
   async verifyCode(
