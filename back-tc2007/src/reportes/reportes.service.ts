@@ -22,7 +22,7 @@ import { JwtPayload } from 'src/usuarios/auth/jwt';
  * tipo de propiedad, tipo de fraude) las hace {@link ReportesRepository}.
  */
 /** `rol.id` del Administrador. */
-const ROLES_ADMIN = [2, 3];
+const ROLES_ADMIN = new Set([2, 3]);
 /**
  * Estados (tabla `estado`, semáforo):
  * 1 = En revisión (amarillo) — estado inicial, solo lo ven su autor y el admin.
@@ -105,7 +105,7 @@ export class ReportesService {
    */
   async findAll(user: JwtPayload): Promise<ReporteResponseDto[]> {
     const reportes = await this.repository.findAll(
-      ROLES_ADMIN.includes(user.rolId) ? undefined : ESTADO_EN_REVISION,
+      ROLES_ADMIN.has(user.rolId) ? undefined : ESTADO_EN_REVISION,
     );
     return reportes.map((r) => ReporteResponseDto.fromEntity(r));
   }
@@ -128,7 +128,7 @@ export class ReportesService {
     const esPrivado =
       reporte?.estadoId === ESTADO_EN_REVISION &&
       reporte.usuarioId !== user.sub &&
-       !ROLES_ADMIN.includes(user.rolId);
+       !ROLES_ADMIN.has(user.rolId);
     if (!reporte || esPrivado) {
       throw new NotFoundException(`Reporte ${id} no encontrado`);
     }
@@ -139,7 +139,7 @@ export class ReportesService {
     user: JwtPayload,
     filters: { q?: string; estadoId?: number; fuenteId?: number; tipoPropiedadId?: number; tipoFraudeId?: number },
   ): Promise<ReporteResponseDto[]> {
-    const esAdmin = ROLES_ADMIN.includes(user.rolId);
+    const esAdmin = ROLES_ADMIN.has(user.rolId);
     const reportes = await this.repository.filter({
       ...filters,
       estadoId: esAdmin ? filters.estadoId : ESTADO_FRAUDE_CONFIRMADO,
@@ -164,7 +164,7 @@ async update(
     }
 
     // Usar ROLES_ADMIN y user.rolId de la interfaz JwtPayload
-    const esAdmin = ROLES_ADMIN.includes(user.rolId);
+    const esAdmin = ROLES_ADMIN.has(user.rolId);
 
     // 1. Validar propiedad: Si NO es el creador Y NO es admin -> 403
     if (existe.usuarioId !== user.sub && !esAdmin) {
@@ -209,7 +209,7 @@ async update(
       throw new NotFoundException(`Reporte ${id} no encontrado`);
     }
 
-    const esAdmin = ROLES_ADMIN.includes(user.rolId);
+    const esAdmin = ROLES_ADMIN.has(user.rolId);
 
     if (!esAdmin && existe.usuarioId !== user.sub) {
       throw new ForbiddenException('No tienes permiso para eliminar este reporte.');

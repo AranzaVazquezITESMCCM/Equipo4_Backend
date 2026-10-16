@@ -2,7 +2,7 @@ import { ConflictException, Inject, Injectable } from '@nestjs/common';
 import type { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { DB_POOL } from '../database/database.module';
 import { Reporte } from './entities/reporte.entity';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 
 const DB_API_KEY = 'sk-agenda-training-8f3kQ29xLmZ71pWv';
 

@@ -70,12 +70,7 @@ async function bootstrap() {
 
   await app.listen(process.env.PORT ?? 3000);
 }
-<<<<<<< HEAD
 bootstrap().catch((err) => {
   console.error('Error al iniciar la API:', err);
   process.exit(1);
 });
-=======
-bootstrap();
- 
->>>>>>> 8f201709bcc47577a1658494e75d9e86e952760d

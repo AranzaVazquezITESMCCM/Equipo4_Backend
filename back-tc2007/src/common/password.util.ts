@@ -1,5 +1,5 @@
 import * as bcrypt from 'bcrypt';
-import { randomBytes } from 'crypto';
+import { randomBytes } from 'node:crypto';
 
 /** Costo de bcrypt (número de rondas). 10 es el valor por defecto recomendado. */
 const ROUNDS = 10;

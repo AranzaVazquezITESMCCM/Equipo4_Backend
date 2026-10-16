@@ -50,7 +50,7 @@ export class AuthService {
    * Usa Gmail con una contraseña de aplicación; las credenciales
    * vienen de `GMAIL_USER` y `GMAIL_APP_PASSWORD`.
    */
-  private transporter = nodemailer.createTransport({
+  private readonly transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
       user: process.env.GMAIL_USER,

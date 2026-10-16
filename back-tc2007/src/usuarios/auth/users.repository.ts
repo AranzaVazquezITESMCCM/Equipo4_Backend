@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { Pool, RowDataPacket, ResultSetHeader } from 'mysql2/promise';
 import { DB_POOL } from 'src/database/database.module';
 import { User } from './entities/user.entity';
+import { randomUUID } from 'node:crypto';
 
 /**
  * Columnas que se leen de `usuario` al construir un {@link User}.
@@ -56,7 +57,7 @@ export class UsersRepository {
    * entidad con los valores que puso la base (p. ej. `created_at`).
    */
   async save(correo: string, contrasena: string, salt: string, nombre: string): Promise<User> {
-    const id = Math.random().toString(36).substring(2, 10);
+    const id = randomUUID();
     await this.pool.query<ResultSetHeader>(
       `INSERT INTO usuario
                 (id, correo, contrasena, salt, nombre, rol_id)
@@ -72,7 +73,7 @@ export class UsersRepository {
    * que {@link approveAdmin} la promueva.
    */
   async saveAdmin(correo: string, contrasena: string, salt: string, nombre: string): Promise<User> {
-    const id = Math.random().toString(36).substring(2, 10);
+    const id = randomUUID();
     await this.pool.query(
       `INSERT INTO usuario
         (id, correo, contrasena, salt, nombre, rol_id)
@@ -186,7 +187,7 @@ export class UsersRepository {
     );
 
     // Generar ID único para la fila de recovery_code
-    const id = Math.random().toString(36).substring(2, 10);
+    const id = randomUUID();
 
     // 2. Inserta el nuevo código activo con su id correspondiente
     await this.pool.query(
