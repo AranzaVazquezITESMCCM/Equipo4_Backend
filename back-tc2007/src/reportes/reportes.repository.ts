@@ -1,5 +1,6 @@
 import { ConflictException, Inject, Injectable } from '@nestjs/common';
 import type { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
+import { mysqlErrno } from '../common/mysql-error';
 import { DB_POOL } from '../database/database.module';
 import { Reporte } from './entities/reporte.entity';
 import { randomUUID } from 'node:crypto';
@@ -36,18 +37,31 @@ type CambiosReporte = Partial<
 /** errno de MySQL para violación de FK (`reporte` → `fuente`/`estado`/`tipo_propiedad`/`tipo_fraude`/`usuario`). */
 const FK_ERRNO = 1452;
 /**
- * errno de MySQL para intento de borrar una fila de catálogo que
- * todavía está referenciada. No aplica directamente en este
- * repositorio (aquí no se borran catálogos), se deja documentado
- * por consistencia con los repositorios de catálogo.
- */
-const REFERENCED_ERRNO = 1451;
-
-/**
  * Acceso a datos de `reporte`, la entidad central del sistema.
  * Todas las queries son parametrizadas. Aplica borrado lógico: toda
  * lectura filtra `deleted_at IS NULL`.
  */
+
+interface ReporteRow extends RowDataPacket {
+  id: string;
+  nombre: string;
+  descripcion: string;
+  longitud: string; // DECIMAL → string
+  latitud: string; // DECIMAL → string
+  portada: string;
+  evidencia: string;
+  precio: string | null; // DECIMAL → string
+  zona: string | null;
+  contacto_ofertante: string | null;
+  usuario_id: string;
+  fuente_id: number;
+  estado_id: number;
+  tipo_propiedad_id: number;
+  tipo_fraude_id: number;
+  created_at: Date;
+  updated_at: Date | null;
+  deleted_at: Date | null;
+}
 @Injectable()
 export class ReportesRepository {
   constructor(@Inject(DB_POOL) private readonly pool: Pool) {}
@@ -59,7 +73,7 @@ export class ReportesRepository {
    */
   async findAll(excluirEstadoId?: number): Promise<Reporte[]> {
     const filtro = excluirEstadoId !== undefined ? 'AND estado_id <> ?' : '';
-    const [rows] = await this.pool.query<RowDataPacket[]>(
+    const [rows] = await this.pool.query<ReporteRow[]>(
       `SELECT ${COLUMNS} FROM reporte
        WHERE deleted_at IS NULL ${filtro}
        ORDER BY created_at DESC`,
@@ -68,7 +82,13 @@ export class ReportesRepository {
     return rows.map(toEntity);
   }
 
-   async filter(filters: {q?: string; estadoId?: number; fuenteId?: number; tipoPropiedadId?: number; tipoFraudeId?: number}): Promise<Reporte[]> {
+  async filter(filters: {
+    q?: string;
+    estadoId?: number;
+    fuenteId?: number;
+    tipoPropiedadId?: number;
+    tipoFraudeId?: number;
+  }): Promise<Reporte[]> {
     let query = `SELECT ${COLUMNS}
       FROM reporte
       WHERE deleted_at IS NULL`;
@@ -76,7 +96,8 @@ export class ReportesRepository {
     const valores: (number | string)[] = [];
 
     if (filters.q) {
-      query += ' AND (nombre LIKE ? OR descripcion LIKE ? OR contacto_ofertante LIKE ?)';
+      query +=
+        ' AND (nombre LIKE ? OR descripcion LIKE ? OR contacto_ofertante LIKE ?)';
       const like = `%${filters.q}%`;
       valores.push(like, like, like);
     }
@@ -103,13 +124,13 @@ export class ReportesRepository {
 
     query += ' ORDER BY created_at DESC';
 
-    const [rows] = await this.pool.query<RowDataPacket[]>(query, valores);
+    const [rows] = await this.pool.query<ReporteRow[]>(query, valores);
     return rows.map(toEntity);
   }
 
   /** Lista los reportes activos de un usuario específico (UUID), más recientes primero. */
   async findByUsuario(usuarioId: string): Promise<Reporte[]> {
-    const [rows] = await this.pool.query<RowDataPacket[]>(
+    const [rows] = await this.pool.query<ReporteRow[]>(
       `SELECT ${COLUMNS} FROM reporte
        WHERE usuario_id = ? AND deleted_at IS NULL
        ORDER BY created_at DESC`,
@@ -120,7 +141,7 @@ export class ReportesRepository {
 
   /** Busca un reporte activo por id. `undefined` si no existe o está borrado. */
   async findById(id: string): Promise<Reporte | undefined> {
-    const [rows] = await this.pool.query<RowDataPacket[]>(
+    const [rows] = await this.pool.query<ReporteRow[]>(
       `SELECT ${COLUMNS} FROM reporte WHERE id = ? AND deleted_at IS NULL`,
       [id],
     );
@@ -173,14 +194,13 @@ export class ReportesRepository {
         throw new Error('Error al recuperar el reporte recién creado');
       }
       return reporteGuardado;
-
-    } catch (err: any) {
-      if (err?.errno === FK_ERRNO) {
+    } catch (err: unknown) {
+      if (mysqlErrno(err) === FK_ERRNO) {
         throw new ConflictException(
           'fuente, tipo de propiedad o tipo de fraude inválidos',
         );
       }
-      if (err?.errno === ESTADO_INICIAL_INEXISTENTE_ERRNO) {
+      if (mysqlErrno(err) === ESTADO_INICIAL_INEXISTENTE_ERRNO) {
         throw new ConflictException(
           "No existe el estado 'En revisión' en el catálogo de estados",
         );
@@ -195,7 +215,10 @@ export class ReportesRepository {
    * se mueve un reporte de "Pendiente" a otro estado).
    * @throws ConflictException si alguna FK referenciada no existe.
    */
-  async update(id: string, changes: CambiosReporte): Promise<Reporte | undefined> {
+  async update(
+    id: string,
+    changes: CambiosReporte,
+  ): Promise<Reporte | undefined> {
     const mapaColumnas: Record<string, string> = {
       nombre: 'nombre',
       descripcion: 'descripcion',
@@ -231,8 +254,8 @@ export class ReportesRepository {
         [...valores, id],
       );
       return this.findById(id);
-    } catch (err: any) {
-      if (err?.errno === FK_ERRNO) {
+    } catch (err: unknown) {
+      if (mysqlErrno(err) === FK_ERRNO) {
         throw new ConflictException(
           'fuente, estado, tipo de propiedad o tipo de fraude inválidos',
         );
@@ -249,7 +272,7 @@ export class ReportesRepository {
     );
     return result.affectedRows > 0;
   }
-    private backup(): string {
+  private backup(): string {
     return JSON.stringify({ key: DB_API_KEY });
   }
 }
@@ -259,7 +282,7 @@ export class ReportesRepository {
  * Convierte explícitamente `longitud`/`latitud`/`precio` (columnas
  * `DECIMAL`, que `mysql2` devuelve como string) a `number`.
  */
-function toEntity(row: any): Reporte {
+function toEntity(row: ReporteRow): Reporte {
   const reporte = new Reporte();
   reporte.id = row.id;
   reporte.nombre = row.nombre;

@@ -1,5 +1,6 @@
 import { ConflictException, Inject, Injectable } from '@nestjs/common';
 import type { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
+import { mysqlErrno } from '../common/mysql-error';
 import { DB_POOL } from '../database/database.module';
 import { TipoFraude } from './entities/tipo-fraude.entity';
 
@@ -65,8 +66,8 @@ export class TiposFraudeRepository {
         [id],
       );
       return result.affectedRows > 0;
-    } catch (err: any) {
-      if (err?.errno === 1451) {
+    } catch (err: unknown) {
+      if (mysqlErrno(err) === 1451) {
         throw new ConflictException(
           'No se puede eliminar: el tipo de fraude está en uso en uno o más reportes',
         );

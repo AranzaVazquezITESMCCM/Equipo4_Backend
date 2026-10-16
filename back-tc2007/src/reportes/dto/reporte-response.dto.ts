@@ -3,14 +3,15 @@ import { Reporte } from '../entities/reporte.entity';
 
 /** Forma pública de un reporte devuelta por la API. */
 export class ReporteResponseDto {
-  @ApiProperty({ example: 1 })
-  id!: number;
+  @ApiProperty({ example: 'a3f1c2a0-4e9d-4a7a-9c2e-1f8a6d2b7e10' })
+  id!: string;
 
   @ApiProperty({ example: 'Departamento fantasma en Polanco' })
   nombre!: string;
 
   @ApiProperty({
-    example: 'El anfitrión pidió depósito fuera de la plataforma y desapareció.',
+    example:
+      'El anfitrión pidió depósito fuera de la plataforma y desapareció.',
   })
   descripcion!: string;
 
@@ -20,11 +21,10 @@ export class ReporteResponseDto {
   @ApiProperty({ example: 19.4326 })
   latitud!: number;
 
-@ApiProperty({
-  description: 'URL pública de la foto de evidencia',
-  example: '/uploads/reportes/a3f1c2a0-4e9d-4a7a-9c2e-1f8a6d2b7e10.jpg',
-})
-
+  @ApiProperty({
+    description: 'URL pública de la foto de evidencia',
+    example: '/uploads/reportes/a3f1c2a0-4e9d-4a7a-9c2e-1f8a6d2b7e10.jpg',
+  })
   @ApiProperty({ example: '/uploads/reportes/a3f1....jpg' })
   portada!: string;
 
@@ -40,11 +40,11 @@ export class ReporteResponseDto {
   @ApiProperty({ example: '+52 55 0000 0000', nullable: true })
   contactoOfertante!: string | null;
 
-@ApiProperty({
-  example: 'b3f1c2a0-4e9d-4a7a-9c2e-1f8a6d2b7e10',
-  description: 'FK hacia usuario.id (quien reportó)',
-})
-usuarioId!: string;
+  @ApiProperty({
+    example: 'b3f1c2a0-4e9d-4a7a-9c2e-1f8a6d2b7e10',
+    description: 'FK hacia usuario.id (quien reportó)',
+  })
+  usuarioId!: string;
 
   @ApiProperty({ example: 1, description: 'FK hacia fuente.id' })
   fuenteId!: number;
@@ -86,9 +86,7 @@ usuarioId!: string;
     dto.tipoPropiedadId = reporte.tipoPropiedadId;
     dto.tipoFraudeId = reporte.tipoFraudeId;
     dto.createdAt = reporte.createdAt.toISOString();
-    dto.updatedAt = reporte.updatedAt
-      ? reporte.updatedAt.toISOString()
-      : null;
+    dto.updatedAt = reporte.updatedAt ? reporte.updatedAt.toISOString() : null;
     return dto;
   }
 }

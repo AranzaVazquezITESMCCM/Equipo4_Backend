@@ -3,9 +3,7 @@ import {
   Controller,
   Delete,
   Get,
-  HttpCode,
   Param,
-  ParseIntPipe,
   Patch,
   Query,
   Post,
@@ -15,13 +13,13 @@ import {
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
+import { ParseUUIDPipe } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { extname } from 'node:path';
 import {
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
-  ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -39,7 +37,6 @@ import { FOTOS_TMP_DIR } from './uploads.paths';
 import { AdminGuard } from 'src/usuarios/auth/admin.guard';
 import { UsuariosService } from '../usuarios/usuarios.service';
 import { UsuarioResponseDto } from '../usuarios/dto/usuario-response.dto';
-import { User } from 'src/usuarios/auth/entities/user.entity';
 
 /**
  * CRUD de reportes de fraude (`/reportes`). Requiere Bearer token.
@@ -53,7 +50,10 @@ import { User } from 'src/usuarios/auth/entities/user.entity';
 @Controller('reportes')
 @UseGuards(AuthGuard)
 export class ReportesController {
-  constructor(private readonly service: ReportesService, private readonly usuariosService: UsuariosService) {}
+  constructor(
+    private readonly service: ReportesService,
+    private readonly usuariosService: UsuariosService,
+  ) {}
 
   /**
    * Sube una foto de evidencia a una carpeta temporal, ANTES de crear
@@ -71,16 +71,17 @@ export class ReportesController {
   @ApiBody({
     schema: {
       type: 'object',
-      properties:
-      {fotos:
-        {type: 'array', items:
-          {type: 'string',format: 'binary'}, minItems: 2, maxItems: 2,
+      properties: {
+        fotos: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+          minItems: 2,
+          maxItems: 2,
         },
       },
-    required: ['fotos'],
+      required: ['fotos'],
     },
   })
-  
   @ApiOkResponse({
     type: FotoTempResponseDto,
     isArray: true,
@@ -95,7 +96,7 @@ export class ReportesController {
         },
       }),
       limits: {
-        fileSize: 5 * 1024 *1024,
+        fileSize: 5 * 1024 * 1024,
       },
       fileFilter: (_req, file, callback) => {
         const tiposPermitidos = ['image/jpeg', 'image/png', 'image/webp'];
@@ -103,12 +104,14 @@ export class ReportesController {
         if (tiposPermitidos.includes(file.mimetype)) {
           callback(null, true);
         } else {
-          callback(new Error('Solo se permiten imágenes JPG, PNG o WEBP'), false);
+          callback(
+            new Error('Solo se permiten imágenes JPG, PNG o WEBP'),
+            false,
+          );
         }
       },
     }),
   )
-   
   uploadFotos(
     @UploadedFiles() files: Express.Multer.File[],
   ): FotoTempResponseDto[] {
@@ -180,12 +183,14 @@ export class ReportesController {
       tipoFraudeId: tipoFraudeId ? Number(tipoFraudeId) : undefined,
     });
   }
-  
+
   /**
- * Datos del autor de un reporte. Solo admin / super admin.
- * Devuelve UsuarioResponseDto, que ya excluye contrasena y salt.
- */
-@ApiOperation({ summary: 'Obtener datos del autor de un reporte (solo admin)' })
+   * Datos del autor de un reporte. Solo admin / super admin.
+   * Devuelve UsuarioResponseDto, que ya excluye contrasena y salt.
+   */
+  @ApiOperation({
+    summary: 'Obtener datos del autor de un reporte (solo admin)',
+  })
   @ApiParam({ name: 'id', type: String, description: 'UUID del reporte' })
   @ApiOkResponse({ type: UsuarioResponseDto })
   @Get(':id/autor')
@@ -199,44 +204,43 @@ export class ReportesController {
   }
 
   /** Obtiene un reporte por id. 404 si no existe o está borrado. */
-@ApiOperation({ summary: 'Obtener un reporte por id' })
+  @ApiOperation({ summary: 'Obtener un reporte por id' })
   @ApiParam({ name: 'id', type: String, description: 'UUID del reporte' })
   @ApiOkResponse({ type: ReporteResponseDto })
   @Get(':id')
   findOne(
     @CurrentUser() user: JwtPayload,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ): Promise<ReporteResponseDto> {
     return this.service.findOne(id, user);
   }
-
 
   /**
    * Actualiza parcialmente un reporte. Incluir `estadoId` en el body
    * es la forma de mover un reporte de "Pendiente" a otro estado
    * (ej. "En revisión", "Verificado").
    */
-@ApiOperation({ summary: 'Actualizar un reporte' })
+  @ApiOperation({ summary: 'Actualizar un reporte' })
   @ApiParam({ name: 'id', type: String, description: 'UUID del reporte' }) // <-- Cambiar type: Number por type: String
   @ApiOkResponse({ type: ReporteResponseDto })
   @Patch(':id')
   @UseGuards(AuthGuard)
   update(
     @CurrentUser() user: JwtPayload,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateReporteDto,
   ): Promise<ReporteResponseDto> {
     return this.service.update(id, dto, user);
   }
 
-    /** Borra lógicamente un reporte (`deleted_at = NOW()`). */
+  /** Borra lógicamente un reporte (`deleted_at = NOW()`). */
   @ApiOperation({ summary: 'Eliminar un reporte' })
   @ApiParam({ name: 'id', type: String, description: 'UUID del reporte' })
   @Delete(':id')
   @UseGuards(AuthGuard)
   async remove(
     @CurrentUser() user: JwtPayload,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ): Promise<{ message: string }> {
     await this.service.remove(id, user);
     return { message: 'Reporte eliminado correctamente' };

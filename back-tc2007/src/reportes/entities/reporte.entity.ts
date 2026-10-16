@@ -6,7 +6,7 @@
  */
 export class Reporte {
   /** Identificador autoincremental (PK). */
-  id!: number;
+  id!: string;
 
   /** Título/nombre corto del reporte. */
   nombre!: string;
@@ -20,18 +20,18 @@ export class Reporte {
   /** Latitud geográfica (DECIMAL(10,8) en la BD). */
   latitud!: number;
 
-/**
- * Ruta pública de la foto de evidencia (ej. `/uploads/reportes/<uuid>.jpg`),
- * servida como estático desde `main.ts`. Ya no se guarda como base64:
- * la foto se sube primero a una carpeta temporal (`POST /reportes/fotos`)
- * y se mueve aquí al crear el reporte (ver {@link ReportesService.create}).
- */
+  /**
+   * Ruta pública de la foto de evidencia (ej. `/uploads/reportes/<uuid>.jpg`),
+   * servida como estático desde `main.ts`. Ya no se guarda como base64:
+   * la foto se sube primero a una carpeta temporal (`POST /reportes/fotos`)
+   * y se mueve aquí al crear el reporte (ver {@link ReportesService.create}).
+   */
   evidencia!: string;
 
   /** Ruta pública de la imagen de portada. */
   portada!: string;
 
-    /** Precio del anuncio en MXN (opcional, DECIMAL(10,2)). */
+  /** Precio del anuncio en MXN (opcional, DECIMAL(10,2)). */
   precio!: number | null;
 
   /** Zona o colonia escrita por el usuario (opcional). */
@@ -40,11 +40,11 @@ export class Reporte {
   /** Teléfono o perfil del ofertante (opcional). */
   contactoOfertante!: string | null;
 
-/**
- * FK hacia `usuario.id` (UUID). Se asigna a partir del token del
- * usuario autenticado (`CurrentUser().sub`), nunca desde el body:
- * así un usuario no puede crear reportes a nombre de otro.
- */
+  /**
+   * FK hacia `usuario.id` (UUID). Se asigna a partir del token del
+   * usuario autenticado (`CurrentUser().sub`), nunca desde el body:
+   * así un usuario no puede crear reportes a nombre de otro.
+   */
   usuarioId!: string;
 
   /** FK hacia `fuente.id`. */

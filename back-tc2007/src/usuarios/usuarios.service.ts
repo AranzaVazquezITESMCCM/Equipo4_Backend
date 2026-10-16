@@ -35,13 +35,16 @@ export class UsuariosService {
     return UsuarioResponseDto.fromEntity(usuario);
   }
 
-  async update(id: string, changes: UpdateUsuarioDto): Promise<UsuarioResponseDto> {
+  async update(
+    id: string,
+    changes: UpdateUsuarioDto,
+  ): Promise<UsuarioResponseDto> {
     const existe = await this.repository.findById(id);
     if (!existe) {
       throw new NotFoundException(`Usuario ${id} no encontrado`);
     }
-    const cambios:any = { ...changes };
-    const actualizado = await this.repository.update(id, cambios as any);
+    const cambios: any = { ...changes };
+    const actualizado = await this.repository.update(id, cambios);
     return UsuarioResponseDto.fromEntity(actualizado!);
   }
 
@@ -49,7 +52,10 @@ export class UsuariosService {
     return this.findOne(id);
   }
 
-  async updateMe( id: string, changes: UpdateMyProfileDto): Promise<UsuarioResponseDto> {
+  async updateMe(
+    id: string,
+    changes: UpdateMyProfileDto,
+  ): Promise<UsuarioResponseDto> {
     return this.update(id, changes);
   }
 

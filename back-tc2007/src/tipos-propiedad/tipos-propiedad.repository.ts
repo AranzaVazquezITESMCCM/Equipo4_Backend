@@ -1,5 +1,6 @@
 import { ConflictException, Inject, Injectable } from '@nestjs/common';
 import type { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
+import { mysqlErrno } from '../common/mysql-error';
 import { DB_POOL } from '../database/database.module';
 import { TipoPropiedad } from './entities/tipo-propiedad.entity';
 
@@ -46,10 +47,10 @@ export class TiposPropiedadRepository {
   ): Promise<TipoPropiedad | undefined> {
     if (changes.nombre === undefined) return this.findById(id);
 
-    await this.pool.query(
-      `UPDATE tipo_propiedad SET nombre = ? WHERE id = ?`,
-      [changes.nombre, id],
-    );
+    await this.pool.query(`UPDATE tipo_propiedad SET nombre = ? WHERE id = ?`, [
+      changes.nombre,
+      id,
+    ]);
     return this.findById(id);
   }
 
@@ -65,8 +66,8 @@ export class TiposPropiedadRepository {
         [id],
       );
       return result.affectedRows > 0;
-    } catch (err: any) {
-      if (err?.errno === 1451) {
+    } catch (err: unknown) {
+      if (mysqlErrno(err) === 1451) {
         throw new ConflictException(
           'No se puede eliminar: el tipo de propiedad está en uso en uno o más reportes',
         );

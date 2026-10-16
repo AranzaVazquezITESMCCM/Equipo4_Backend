@@ -6,7 +6,11 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
-import { generateSalt, hashPassword, verifyPassword } from '../../common/password.util';
+import {
+  generateSalt,
+  hashPassword,
+  verifyPassword,
+} from '../../common/password.util';
 import { randomInt } from 'node:crypto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
@@ -14,10 +18,6 @@ import { RegisterDto } from './dto/register.dto';
 import { sign, verify } from './jwt';
 import { UsersRepository } from './users.repository';
 import * as nodemailer from 'nodemailer';
-import * as bcrypt from 'bcrypt';
-
-
-
 
 /** Vida del access token: 15 minutos (en segundos). */
 const ACCESS_TTL = 15 * 60;
@@ -41,7 +41,7 @@ const REFRESH_TTL = 7 * 24 * 60 * 60;
  */
 @Injectable()
 export class AuthService {
-   /** Bitácora de auditoría de la recuperación de contraseña. */
+  /** Bitácora de auditoría de la recuperación de contraseña. */
   private readonly auditoria = new Logger('RecuperacionContrasena');
   constructor(private readonly users: UsersRepository) {}
 
@@ -73,11 +73,11 @@ export class AuthService {
     }
     const salt = generateSalt();
     const user = await this.users.save(
-            dto.email!,
-            hashPassword(dto.password!, salt),
-            salt,
-            dto.nombre!,
-        );
+      dto.email!,
+      hashPassword(dto.password!, salt),
+      salt,
+      dto.nombre!,
+    );
     return { id: user.id!, email: user.email! };
   }
 
@@ -90,7 +90,9 @@ export class AuthService {
    *
    * @throws ConflictException si el email ya está registrado.
    */
-  async registerAdmin(dto: RegisterDto,): Promise<{ id: string; email: string }> {
+  async registerAdmin(
+    dto: RegisterDto,
+  ): Promise<{ id: string; email: string }> {
     if (await this.users.findByEmail(dto.email!)) {
       throw new ConflictException('El email ya está registrado');
     }
@@ -135,20 +137,16 @@ export class AuthService {
     }
 
     if (user.rolId === 4) {
-      throw new UnauthorizedException('Tu solicitud de administrador está pendiente de aprobación');
+      throw new UnauthorizedException(
+        'Tu solicitud de administrador está pendiente de aprobación',
+      );
     }
 
-    const claims = { sub: user.id!, email: user.email!, rolId: user.rolId!};
+    const claims = { sub: user.id!, email: user.email!, rolId: user.rolId! };
 
-    const accessToken = sign(
-      { ...claims, type: 'access' },
-      ACCESS_TTL,
-    );
+    const accessToken = sign({ ...claims, type: 'access' }, ACCESS_TTL);
 
-    const refreshToken = sign(
-      { ...claims, type: 'refresh' },
-      REFRESH_TTL,
-    );
+    const refreshToken = sign({ ...claims, type: 'refresh' }, REFRESH_TTL);
 
     console.log('Login de ' + user.email + ': ' + accessToken);
 
@@ -176,25 +174,21 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales incorrectas');
     }
 
-    if (!verifyPassword(dto.password!, user.salt!,user.passwordHash!)) {
+    if (!verifyPassword(dto.password!, user.salt!, user.passwordHash!)) {
       throw new UnauthorizedException('Credenciales incorrectas');
     }
 
     if (user.rolId !== 2 && user.rolId !== 3) {
-      throw new UnauthorizedException('No tienes permisos para acceder al dashboard');
+      throw new UnauthorizedException(
+        'No tienes permisos para acceder al dashboard',
+      );
     }
 
-    const claims = {sub: user.id!, email: user.email!, rolId: user.rolId!};
+    const claims = { sub: user.id!, email: user.email!, rolId: user.rolId };
 
-    const accessToken = sign(
-      { ...claims, type: 'access' },
-      ACCESS_TTL,
-    );
+    const accessToken = sign({ ...claims, type: 'access' }, ACCESS_TTL);
 
-    const refreshToken = sign(
-      { ...claims, type: 'refresh' },
-      REFRESH_TTL,
-    );
+    const refreshToken = sign({ ...claims, type: 'refresh' }, REFRESH_TTL);
 
     return { accessToken, refreshToken };
   }
@@ -218,11 +212,11 @@ export class AuthService {
     }
 
     return {
-      message: 'Administrador aprobado correctamente'
+      message: 'Administrador aprobado correctamente',
     };
   }
 
-    async rejectAdmin(id: string) {
+  async rejectAdmin(id: string) {
     const rejected = await this.users.rejectAdmin(id);
     if (!rejected) {
       throw new NotFoundException('No se encontró una solicitud pendiente');
@@ -239,12 +233,13 @@ export class AuthService {
       throw new NotFoundException('No se encontró un administrador con ese id');
     }
     if (rolId === 3 && (await this.users.countSuperAdmins()) <= 1) {
-      throw new BadRequestException('No se puede quitar el acceso al último super administrador');
+      throw new BadRequestException(
+        'No se puede quitar el acceso al último super administrador',
+      );
     }
     await this.users.revokeAdmin(id);
     return { message: 'Acceso retirado correctamente' };
   }
-
 
   /**
    * Emite un nuevo access token a partir de un refresh token válido.
@@ -293,7 +288,9 @@ export class AuthService {
   async forgotPassword(email: string): Promise<{ message: string }> {
     const user = await this.users.findByEmail(email);
     if (!user) {
-       this.auditoria.warn(`Solicitud de código FALLIDA: correo no registrado (${email})`);
+      this.auditoria.warn(
+        `Solicitud de código FALLIDA: correo no registrado (${email})`,
+      );
       throw new UnauthorizedException('El usuario no existe');
     }
     const caracteres = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -310,54 +307,77 @@ export class AuthService {
       text: `Tu código de recuperación es: ${codigo}
     Este código es válido por 15 minutos y solo puede usarse una vez.`,
     });
-        this.auditoria.log(`Código de recuperación enviado a ${email} (usuario ${user.id})`);
+    this.auditoria.log(
+      `Código de recuperación enviado a ${email} (usuario ${user.id})`,
+    );
     return {
       message: 'Se generó el código de recuperación',
     };
   }
 
-async verifyCode(correo: string, codigo: string): Promise<{ message: string }> {
-  const user = await this.users.findByEmail(correo);
-  if (!user) {
-    this.auditoria.warn(`Verificación de código FALLIDA: correo no registrado (${correo})`);
-    throw new UnauthorizedException('Código inválido');
-  }
-  const recovery = await this.users.findRecoveryCode(user.id!, codigo);
-  if (!recovery || recovery.usado) {
-    this.auditoria.warn(`Verificación de código FALLIDA para ${correo}: código inválido o ya usado`);
-    throw new UnauthorizedException('Código inválido o ya utilizado');
-  }
-  this.auditoria.log(`Código verificado correctamente para ${correo}`);
-  return { message: 'Código válido' };
-}
-
-async resetPassword(dto: { correo: string; codigo: string; nuevaContrasena: string }) {
-  // 1. Buscar usuario
-  const user = await this.users.findByEmail(dto.correo);
-  if (!user) {
-    this.auditoria.warn(`Restablecimiento FALLIDO: correo no registrado (${dto.correo})`);
-    throw new UnauthorizedException('El correo o código es inválido');
-  }
-
-  // 2. Buscar y validar código de recuperación activo
-  const recovery = await this.users.findRecoveryCode(user.id!, dto.codigo);
-  
- if (!recovery || Boolean(recovery.usado) || new Date() > new Date(recovery.expira_en)) {
-    this.auditoria.warn(`Restablecimiento FALLIDO para ${dto.correo}: código incorrecto, usado o expirado`);
-    throw new UnauthorizedException('El código es incorrecto o ya expiró');
+  async verifyCode(
+    correo: string,
+    codigo: string,
+  ): Promise<{ message: string }> {
+    const user = await this.users.findByEmail(correo);
+    if (!user) {
+      this.auditoria.warn(
+        `Verificación de código FALLIDA: correo no registrado (${correo})`,
+      );
+      throw new UnauthorizedException('Código inválido');
+    }
+    const recovery = await this.users.findRecoveryCode(user.id!, codigo);
+    if (!recovery || recovery.usado) {
+      this.auditoria.warn(
+        `Verificación de código FALLIDA para ${correo}: código inválido o ya usado`,
+      );
+      throw new UnauthorizedException('Código inválido o ya utilizado');
+    }
+    this.auditoria.log(`Código verificado correctamente para ${correo}`);
+    return { message: 'Código válido' };
   }
 
-  // 3. Marcar código como usado
-  await this.users.useRecoveryCode(recovery.id);
+  async resetPassword(dto: {
+    correo: string;
+    codigo: string;
+    nuevaContrasena: string;
+  }) {
+    // 1. Buscar usuario
+    const user = await this.users.findByEmail(dto.correo);
+    if (!user) {
+      this.auditoria.warn(
+        `Restablecimiento FALLIDO: correo no registrado (${dto.correo})`,
+      );
+      throw new UnauthorizedException('El correo o código es inválido');
+    }
 
-  // 4. Generar salt y hash usando las utilidades nativas
-  const newSalt = generateSalt();
-  const newHash = hashPassword(dto.nuevaContrasena, newSalt);
+    // 2. Buscar y validar código de recuperación activo
+    const recovery = await this.users.findRecoveryCode(user.id!, dto.codigo);
 
-  // 5. Actualizar ambos valores en la base de datos
-  await this.users.updatePassword(user.id!, newHash, newSalt);
-   this.auditoria.log(`Contraseña restablecida para ${dto.correo} (usuario ${user.id})`);
+    if (
+      !recovery ||
+      Boolean(recovery.usado) ||
+      new Date() > new Date(recovery.expira_en)
+    ) {
+      this.auditoria.warn(
+        `Restablecimiento FALLIDO para ${dto.correo}: código incorrecto, usado o expirado`,
+      );
+      throw new UnauthorizedException('El código es incorrecto o ya expiró');
+    }
 
-  return { message: 'Contraseña actualizada correctamente' };
-}
+    // 3. Marcar código como usado
+    await this.users.useRecoveryCode(recovery.id);
+
+    // 4. Generar salt y hash usando las utilidades nativas
+    const newSalt = generateSalt();
+    const newHash = hashPassword(dto.nuevaContrasena, newSalt);
+
+    // 5. Actualizar ambos valores en la base de datos
+    await this.users.updatePassword(user.id!, newHash, newSalt);
+    this.auditoria.log(
+      `Contraseña restablecida para ${dto.correo} (usuario ${user.id})`,
+    );
+
+    return { message: 'Contraseña actualizada correctamente' };
+  }
 }

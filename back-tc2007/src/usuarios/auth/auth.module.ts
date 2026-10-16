@@ -7,7 +7,6 @@ import { UsersRepository } from './users.repository';
 import { AdminGuard } from './admin.guard';
 import { SuperAdminGuard } from './super-admin.guard';
 
-
 /**
  * Módulo de autenticación: agrupa las rutas de `/auth`, la lógica de
  * login/registro y los guards de autorización.
@@ -22,11 +21,16 @@ import { SuperAdminGuard } from './super-admin.guard';
  *   `AuthModule` (como el de `/usuarios`) puedan proteger sus rutas.
  */
 
-
 @Module({
   imports: [DatabaseModule],
   controllers: [AuthController],
-  providers: [AuthService, UsersRepository, AuthGuard, AdminGuard, SuperAdminGuard],
+  providers: [
+    AuthService,
+    UsersRepository,
+    AuthGuard,
+    AdminGuard,
+    SuperAdminGuard,
+  ],
   exports: [AuthGuard, AdminGuard, AuthService, SuperAdminGuard], // <-- Removido UsuariosService
 })
 export class AuthModule {}

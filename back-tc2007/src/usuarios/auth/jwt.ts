@@ -23,37 +23,37 @@ const SECRET = 'fraud2-secret-2026';
 
 /** Claims que viajan dentro de cada token emitido por {@link sign}. */
 export interface JwtPayload {
-    /** Id del usuario (claim estándar "subject"). */
-    sub: string;
-    email: string;
-    rol?: string;
-    /**
-     * Distingue access tokens de refresh tokens. Ambos se firman igual,
-     * así que quien consume el token debe revisar este campo para no
-     * aceptar uno en lugar del otro.
-     */
-    type: 'access' | 'refresh';
-    /** Momento de emisión, en segundos Unix. */
-    iat: number;
-    /** Momento de expiración, en segundos Unix. */
-    exp: number;
-    /** Rol del usuario al momento de emitir el token (ver {@link SuperAdminGuard}). */
-    rolId: number;
+  /** Id del usuario (claim estándar "subject"). */
+  sub: string;
+  email: string;
+  rol?: string;
+  /**
+   * Distingue access tokens de refresh tokens. Ambos se firman igual,
+   * así que quien consume el token debe revisar este campo para no
+   * aceptar uno en lugar del otro.
+   */
+  type: 'access' | 'refresh';
+  /** Momento de emisión, en segundos Unix. */
+  iat: number;
+  /** Momento de expiración, en segundos Unix. */
+  exp: number;
+  /** Rol del usuario al momento de emitir el token (ver {@link SuperAdminGuard}). */
+  rolId: number;
 }
 
 /** Hora actual en segundos Unix, la unidad que usan `iat` y `exp`. */
 function now(): number {
-    return Math.floor(Date.now() / 1000);
+  return Math.floor(Date.now() / 1000);
 }
 
 /** Serializa un objeto a JSON y lo codifica en base64url. */
 function b64url(json: object): string {
-    return Buffer.from(JSON.stringify(json)).toString('base64url');
+  return Buffer.from(JSON.stringify(json)).toString('base64url');
 }
 
 /** Firma una cadena con HMAC-SHA256 y {@link SECRET}; devuelve base64url. */
 function hmac(data: string): string {
-    return createHmac('sha256', SECRET).update(data).digest('base64url');
+  return createHmac('sha256', SECRET).update(data).digest('base64url');
 }
 
 /**
@@ -65,19 +65,19 @@ function hmac(data: string): string {
  * @returns El token en formato `header.payload.firma`.
  */
 export function sign(
-    payload: Omit<JwtPayload, 'iat' | 'exp'>,
-    ttlSeconds: number,
+  payload: Omit<JwtPayload, 'iat' | 'exp'>,
+  ttlSeconds: number,
 ): string {
-    const header = b64url({ alg: 'HS256', typ: 'JWT' });
-    const body = b64url({
-        ...payload,
-        iat: now(),
-        exp: now() + ttlSeconds,
-    });
+  const header = b64url({ alg: 'HS256', typ: 'JWT' });
+  const body = b64url({
+    ...payload,
+    iat: now(),
+    exp: now() + ttlSeconds,
+  });
 
-    const signature = hmac(`${header}.${body}`);
+  const signature = hmac(`${header}.${body}`);
 
-    return `${header}.${body}.${signature}`;
+  return `${header}.${body}.${signature}`;
 }
 
 /**
@@ -95,23 +95,23 @@ export function sign(
  * si está mal formado, la firma no coincide o ya expiró.
  */
 export function verify(token: string): JwtPayload | null {
-    const [header, body, signature] = token.split('.');
+  const [header, body, signature] = token.split('.');
 
-    if (!header || !body || !signature) {
-        return null;
-    }
+  if (!header || !body || !signature) {
+    return null;
+  }
 
-    if (hmac(`${header}.${body}`) !== signature) {
-        return null;
-    }
+  if (hmac(`${header}.${body}`) !== signature) {
+    return null;
+  }
 
-    const payload = JSON.parse(
-        Buffer.from(body, 'base64url').toString(),
-    ) as JwtPayload;
+  const payload = JSON.parse(
+    Buffer.from(body, 'base64url').toString(),
+  ) as JwtPayload;
 
-    if (payload.exp < now()) {
-        return null;
-    }
+  if (payload.exp < now()) {
+    return null;
+  }
 
-    return payload;
+  return payload;
 }

@@ -8,11 +8,17 @@ import { IsEmail, IsString, Matches, MinLength } from 'class-validator';
  * es temporal y expira.
  */
 export class ResetPasswordDto {
-  @ApiProperty({ example: 'ara@tec.mx', description: 'Correo de la cuenta a recuperar' })
+  @ApiProperty({
+    example: 'ara@tec.mx',
+    description: 'Correo de la cuenta a recuperar',
+  })
   @IsEmail()
   correo!: string;
 
-  @ApiProperty({ example: '483920', description: 'Código de verificación enviado por correo' })
+  @ApiProperty({
+    example: '483920',
+    description: 'Código de verificación enviado por correo',
+  })
   @IsString()
   codigo!: string;
 

@@ -34,11 +34,9 @@ const ESTADO_FRAUDE_CONFIRMADO = 2;
 /** Estados en los que un admin puede editar un reporte. */
 const ESTADOS_EDITABLES_ADMIN = [ESTADO_EN_REVISION, ESTADO_FRAUDE_CONFIRMADO];
 
-
-
 @Injectable()
 export class ReportesService {
-  private readonly logger = new Logger(ReportesService.name); 
+  private readonly logger = new Logger(ReportesService.name);
   constructor(private readonly repository: ReportesRepository) {}
 
   /**
@@ -50,7 +48,9 @@ export class ReportesService {
    */
   registrarFotoTemporal(files: Express.Multer.File[]): FotoTempResponseDto[] {
     if (!Array.isArray(files) || files.length !== 2) {
-      throw new BadRequestException('Debes subir exactamente 2 fotos: una portada y una evidencia');
+      throw new BadRequestException(
+        'Debes subir exactamente 2 fotos: una portada y una evidencia',
+      );
     }
     return files.map((file) => {
       const dto = new FotoTempResponseDto();
@@ -67,7 +67,10 @@ export class ReportesService {
    * por `data.fotoTemp` se mueve de temporales a almacenamiento
    * definitivo como parte de la creación (ver {@link moverFotoAPermanente}).
    */
-  async create(usuarioId: string, data: CreateReporteDto): Promise<ReporteResponseDto> {
+  async create(
+    usuarioId: string,
+    data: CreateReporteDto,
+  ): Promise<ReporteResponseDto> {
     try {
       if (data.longitud < -90 || data.longitud > 90) {
         throw new BadRequestException('Latitud invalida');
@@ -98,7 +101,7 @@ export class ReportesService {
     return ReporteResponseDto.fromEntity(reporte);
   }
 
- /**
+  /**
    * Lista los reportes de la comunidad. Un usuario normal solo ve los ya
    * revisados (Fraude confirmado / No es fraude); los "En revisión" son
    * privados de su autor (los ve en GET /reportes/self). El admin ve todos.
@@ -110,7 +113,6 @@ export class ReportesService {
     return reportes.map((r) => ReporteResponseDto.fromEntity(r));
   }
 
-
   /** Lista los reportes activos de un usuario específico. Usado por `GET /reportes/self`. */
   async findByUsuario(usuarioId: string): Promise<ReporteResponseDto[]> {
     const reportes = await this.repository.findByUsuario(usuarioId);
@@ -121,23 +123,29 @@ export class ReportesService {
    * Busca un reporte por id.
    * @throws NotFoundException si no existe o está borrado.
    */
-    async findOne(id: string, user: JwtPayload): Promise<ReporteResponseDto> {
+  async findOne(id: string, user: JwtPayload): Promise<ReporteResponseDto> {
     const reporte = await this.repository.findById(id);
     // Un reporte "En revisión" ajeno se trata como inexistente (404, no 403)
     // para no revelar que existe.
     const esPrivado =
       reporte?.estadoId === ESTADO_EN_REVISION &&
       reporte.usuarioId !== user.sub &&
-       !ROLES_ADMIN.has(user.rolId);
+      !ROLES_ADMIN.has(user.rolId);
     if (!reporte || esPrivado) {
       throw new NotFoundException(`Reporte ${id} no encontrado`);
     }
     return ReporteResponseDto.fromEntity(reporte);
   }
 
-   async filter(
+  async filter(
     user: JwtPayload,
-    filters: { q?: string; estadoId?: number; fuenteId?: number; tipoPropiedadId?: number; tipoFraudeId?: number },
+    filters: {
+      q?: string;
+      estadoId?: number;
+      fuenteId?: number;
+      tipoPropiedadId?: number;
+      tipoFraudeId?: number;
+    },
   ): Promise<ReporteResponseDto[]> {
     const esAdmin = ROLES_ADMIN.has(user.rolId);
     const reportes = await this.repository.filter({
@@ -153,7 +161,7 @@ export class ReportesService {
    * otro estado).
    * @throws NotFoundException si el reporte no existe.
    */
-async update(
+  async update(
     id: string,
     changes: UpdateReporteDto,
     user: JwtPayload,
@@ -168,19 +176,24 @@ async update(
 
     // 1. Validar propiedad: Si NO es el creador Y NO es admin -> 403
     if (existe.usuarioId !== user.sub && !esAdmin) {
-      throw new ForbiddenException('No tienes permiso para editar este reporte.');
+      throw new ForbiddenException(
+        'No tienes permiso para editar este reporte.',
+      );
     }
 
     // 2. Validar estado editable
-       if (!esAdmin && existe.estadoId !== ESTADO_EN_REVISION) {
+    if (!esAdmin && existe.estadoId !== ESTADO_EN_REVISION) {
       throw new BadRequestException(
         'Solo puedes editar tu reporte mientras esté "En revisión"',
       );
     }
 
     const { fotoTemps, ...resto } = changes;
-    const cambios: Partial<UpdateReporteDto> & {portada?: string; evidencia?: string} = resto;
-    
+    const cambios: Partial<UpdateReporteDto> & {
+      portada?: string;
+      evidencia?: string;
+    } = resto;
+
     if (fotoTemps) {
       if (fotoTemps.length !== 2) {
         throw new BadRequestException(
@@ -191,7 +204,7 @@ async update(
       cambios.evidencia = this.moverFotoAPermanente(fotoTemps[1]);
     }
 
-    const actualizado = await this.repository.update(id, cambios as any);
+    const actualizado = await this.repository.update(id, cambios);
     this.logger.log(
       `Reporte ${id} editado por ${user.sub}: ${JSON.stringify(cambios)}`,
     );
@@ -212,7 +225,9 @@ async update(
     const esAdmin = ROLES_ADMIN.has(user.rolId);
 
     if (!esAdmin && existe.usuarioId !== user.sub) {
-      throw new ForbiddenException('No tienes permiso para eliminar este reporte.');
+      throw new ForbiddenException(
+        'No tienes permiso para eliminar este reporte.',
+      );
     }
     if (!esAdmin && existe.estadoId !== ESTADO_EN_REVISION) {
       throw new BadRequestException(

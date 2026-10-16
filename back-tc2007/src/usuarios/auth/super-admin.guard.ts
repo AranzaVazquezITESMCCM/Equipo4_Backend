@@ -36,7 +36,9 @@ export class SuperAdminGuard implements CanActivate {
 
     // 3 = Super Admin
     if (req.user?.rolId !== 3) {
-      throw new ForbiddenException('Solo el Super Admin puede realizar esta acción');
+      throw new ForbiddenException(
+        'Solo el Super Admin puede realizar esta acción',
+      );
     }
 
     return true;

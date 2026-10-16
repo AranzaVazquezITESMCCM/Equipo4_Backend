@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Pool, RowDataPacket, ResultSetHeader } from 'mysql2/promise';
+
 import { DB_POOL } from 'src/database/database.module';
 import { User } from './entities/user.entity';
 import { randomUUID } from 'node:crypto';
@@ -56,7 +57,12 @@ export class UsersRepository {
    * insertar, se relee la fila con {@link findById} para devolver la
    * entidad con los valores que puso la base (p. ej. `created_at`).
    */
-  async save(correo: string, contrasena: string, salt: string, nombre: string): Promise<User> {
+  async save(
+    correo: string,
+    contrasena: string,
+    salt: string,
+    nombre: string,
+  ): Promise<User> {
     const id = randomUUID();
     await this.pool.query<ResultSetHeader>(
       `INSERT INTO usuario
@@ -72,7 +78,12 @@ export class UsersRepository {
    * de administrador pendiente). La cuenta no tiene acceso a nada hasta
    * que {@link approveAdmin} la promueva.
    */
-  async saveAdmin(correo: string, contrasena: string, salt: string, nombre: string): Promise<User> {
+  async saveAdmin(
+    correo: string,
+    contrasena: string,
+    salt: string,
+    nombre: string,
+  ): Promise<User> {
     const id = randomUUID();
     await this.pool.query(
       `INSERT INTO usuario
@@ -93,7 +104,7 @@ export class UsersRepository {
       `SELECT id, correo, nombre, created_at
       FROM usuario
       WHERE rol_id = 4
-      AND deleted_at IS NULL`
+      AND deleted_at IS NULL`,
     );
     return rows;
   }
@@ -114,12 +125,12 @@ export class UsersRepository {
       WHERE id = ?
       AND rol_id = 4
       AND deleted_at IS NULL`,
-      [id]
+      [id],
     );
     return result.affectedRows > 0;
   }
 
-    /** Pendiente (4) → Usuario (1). */
+  /** Pendiente (4) → Usuario (1). */
   async rejectAdmin(id: string): Promise<boolean> {
     const [result] = await this.pool.query<ResultSetHeader>(
       `UPDATE usuario SET rol_id = 1
@@ -173,7 +184,7 @@ export class UsersRepository {
    * usado. No invalida códigos anteriores del mismo usuario: si pide
    * varios, todos siguen siendo válidos hasta que expiren o se usen.
    */
-/**
+  /**
    * Guarda un código de recuperación de contraseña, marcado como no usado.
    * Invalida los códigos anteriores del mismo usuario y genera un ID de 8 caracteres.
    */
@@ -183,7 +194,7 @@ export class UsersRepository {
       `UPDATE recovery_code 
        SET usado = TRUE 
        WHERE usuario_id = ? AND usado = FALSE`,
-      [usuarioId]
+      [usuarioId],
     );
 
     // Generar ID único para la fila de recovery_code
@@ -193,7 +204,7 @@ export class UsersRepository {
     await this.pool.query(
       `INSERT INTO recovery_code (id, usuario_id, codigo, expira_en, usado) 
        VALUES (?, ?, ?, ?, FALSE)`,
-      [id, usuarioId, codigo, expiraEn]
+      [id, usuarioId, codigo, expiraEn],
     );
   }
 
@@ -208,26 +219,30 @@ export class UsersRepository {
          AND codigo = BINARY ? 
          AND usado = FALSE 
        LIMIT 1`,
-      [usuarioId, codigo]
+      [usuarioId, codigo],
     );
     return rows[0] || null;
   }
 
   /** Marca un código de recuperación como usado para que no se pueda reutilizar. */
-/** Marca un código de recuperación como usado */
-async useRecoveryCode(id: string | number): Promise<void> {
-  await this.pool.query(
-    `UPDATE recovery_code
+  /** Marca un código de recuperación como usado */
+  async useRecoveryCode(id: string | number): Promise<void> {
+    await this.pool.query(
+      `UPDATE recovery_code
      SET usado = TRUE
      WHERE id = ?`,
-    [id],
-  );
-}
+      [id],
+    );
+  }
 
   /**
    * Reemplaza el hash y el salt de un usuario. Ambos se actualizan juntos.
    */
-  async updatePassword(usuarioId: string, contrasena: string, salt: string): Promise<void> {
+  async updatePassword(
+    usuarioId: string,
+    contrasena: string,
+    salt: string,
+  ): Promise<void> {
     await this.pool.query(
       `UPDATE usuario
       SET contrasena = ?, salt = ?

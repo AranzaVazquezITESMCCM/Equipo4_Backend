@@ -8,12 +8,14 @@ export class EstadisticasService {
 
   /** Junta todos los conteos del dashboard en una sola respuesta. */
   async obtener(): Promise<EstadisticasDto> {
-    const [totalReportes, porEstado, porTipoFraude, porMes] = await Promise.all([
-      this.repository.contarReportes(),
-      this.repository.contarPorEstado(),
-      this.repository.contarPorTipoFraude(),
-      this.repository.contarPorMes(),
-    ]);
+    const [totalReportes, porEstado, porTipoFraude, porMes] = await Promise.all(
+      [
+        this.repository.contarReportes(),
+        this.repository.contarPorEstado(),
+        this.repository.contarPorTipoFraude(),
+        this.repository.contarPorMes(),
+      ],
+    );
     return { totalReportes, porEstado, porTipoFraude, porMes };
   }
 }

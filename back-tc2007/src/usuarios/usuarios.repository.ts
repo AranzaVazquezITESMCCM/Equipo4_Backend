@@ -1,6 +1,7 @@
 import { ConflictException, Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
+import { mysqlErrno } from '../common/mysql-error';
 import { DB_POOL } from '../database/database.module';
 import { Usuario } from './entities/usuario.entity';
 
@@ -16,7 +17,7 @@ export class UsuariosRepository {
   constructor(@Inject(DB_POOL) private readonly pool: Pool) {}
 
   /** Lista los usuarios activos, ordenados por fecha de creación. */
-   async findAll(): Promise<Usuario[]> {
+  async findAll(): Promise<Usuario[]> {
     const [rows] = await this.pool.query<RowDataPacket[]>(
       `SELECT ${COLUMNS} FROM usuario WHERE deleted_at IS NULL ORDER BY created_at`,
     );
@@ -24,10 +25,10 @@ export class UsuariosRepository {
   }
 
   /** Busca un usuario activo por id (UUID). `undefined` si no existe o está borrado. */
-    async findById(id: string): Promise<Usuario | undefined> {
+  async findById(id: string): Promise<Usuario | undefined> {
     const [rows] = await this.pool.query<RowDataPacket[]>(
-       `SELECT ${COLUMNS} FROM usuario WHERE id = ? AND deleted_at IS NULL`,
-       [id],
+      `SELECT ${COLUMNS} FROM usuario WHERE id = ? AND deleted_at IS NULL`,
+      [id],
     );
     return rows[0] && toEntity(rows[0]);
   }
@@ -46,13 +47,20 @@ export class UsuariosRepository {
     const id = randomUUID();
     try {
       await this.pool.query<ResultSetHeader>(
-       `INSERT INTO usuario (id, correo, contrasena, salt, nombre, rol_id)
+        `INSERT INTO usuario (id, correo, contrasena, salt, nombre, rol_id)
         VALUES (?, ?, ?, ?, ?, ?)`,
-        [id, usuario.correo, usuario.contrasena, usuario.salt, usuario.nombre, usuario.rolId],
+        [
+          id,
+          usuario.correo,
+          usuario.contrasena,
+          usuario.salt,
+          usuario.nombre,
+          usuario.rolId,
+        ],
       );
       return (await this.findById(id))!;
-    } catch (err: any) {
-      if (err?.errno === 1452) {
+    } catch (err: unknown) {
+      if (mysqlErrno(err) === 1452) {
         throw new ConflictException('El rol especificado no existe');
       }
       throw err;
@@ -100,8 +108,8 @@ export class UsuariosRepository {
         `UPDATE usuario SET ${asignaciones.join(', ')} WHERE id = ? AND deleted_at IS NULL`,
         [...valores, id],
       );
-    } catch (err: any) {
-      if (err?.errno === 1452) {
+    } catch (err: unknown) {
+      if (mysqlErrno(err) === 1452) {
         throw new ConflictException('El rol especificado no existe');
       }
       throw err;
@@ -116,9 +124,9 @@ export class UsuariosRepository {
    */
   async softDelete(id: string): Promise<boolean> {
     const [result] = await this.pool.query<ResultSetHeader>(
-        `UPDATE usuario SET deleted_at = NOW() WHERE id = ? AND deleted_at IS NULL`,
-        [id],
-      );
+      `UPDATE usuario SET deleted_at = NOW() WHERE id = ? AND deleted_at IS NULL`,
+      [id],
+    );
     return result.affectedRows > 0;
   }
 }

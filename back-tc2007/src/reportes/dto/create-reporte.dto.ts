@@ -12,7 +12,6 @@ import {
   IsString,
   Matches,
   Max,
-  MaxLength,
   Min,
 } from 'class-validator';
 
@@ -37,7 +36,8 @@ export class CreateReporteDto {
 
   /** Descripción detallada del fraude reportado. */
   @ApiProperty({
-    example: 'El anfitrión pidió depósito fuera de la plataforma y desapareció.',
+    example:
+      'El anfitrión pidió depósito fuera de la plataforma y desapareció.',
   })
   @IsString()
   @IsNotEmpty()
@@ -53,11 +53,11 @@ export class CreateReporteDto {
   @IsLatitude()
   latitud!: number;
 
-/**
- * Referencia a la foto ya subida a temporales, devuelta por
- * `POST /reportes/fotos` como `fotoTemp`. Debe existir en la
- * carpeta temporal en el momento de crear el reporte.
- */
+  /**
+   * Referencia a la foto ya subida a temporales, devuelta por
+   * `POST /reportes/fotos` como `fotoTemp`. Debe existir en la
+   * carpeta temporal en el momento de crear el reporte.
+   */
   @ApiProperty({
     description:
       'Referencias fotoTemp devueltas por POST /reportes/fotos. La primera corresponde a la portada y la segunda a la evidencia.',
@@ -76,8 +76,8 @@ export class CreateReporteDto {
   @IsNotEmpty({ each: true })
   fotoTemps!: string[];
 
-    /** Precio del anuncio en MXN (opcional). */
-    /** Precio del anuncio en MXN (opcional). Solo números, máx. 2 decimales. */
+  /** Precio del anuncio en MXN (opcional). */
+  /** Precio del anuncio en MXN (opcional). Solo números, máx. 2 decimales. */
   @ApiProperty({ example: 4200.5, required: false })
   @IsOptional()
   @IsNumber(
@@ -93,7 +93,8 @@ export class CreateReporteDto {
   @IsOptional()
   @IsString()
   @Matches(/^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9 .,#-]{3,150}$/, {
-    message: 'La zona solo puede tener letras, números, espacios y . , # - (3 a 150 caracteres)',
+    message:
+      'La zona solo puede tener letras, números, espacios y . , # - (3 a 150 caracteres)',
   })
   zona?: string;
 

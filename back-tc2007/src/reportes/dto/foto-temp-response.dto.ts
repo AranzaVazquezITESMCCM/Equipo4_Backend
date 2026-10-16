@@ -16,6 +16,8 @@ export class FotoTempResponseDto {
    * mueve a la carpeta definitiva (la URL final queda en
    * `ReporteResponseDto.fotoUrl`).
    */
-  @ApiProperty({ example: '/uploads/tmp/a3f1c2a0-4e9d-4a7a-9c2e-1f8a6d2b7e10.jpg' })
+  @ApiProperty({
+    example: '/uploads/tmp/a3f1c2a0-4e9d-4a7a-9c2e-1f8a6d2b7e10.jpg',
+  })
   url!: string;
 }

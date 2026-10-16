@@ -21,20 +21,23 @@ loadEnvFile();
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.use((req, res, next) => {
-  const start = Date.now();
-  const jsonOriginal = res.json.bind(res);
-  res.json = (body) => {
-    if (res.statusCode >= 400) {
-      Logger.warn(`Body recibido: ${JSON.stringify(req.body)}`, 'HTTP');
-      Logger.warn(`Respuesta: ${JSON.stringify(body)}`, 'HTTP');
-    }
-    return jsonOriginal(body);
-  };
-  res.on('finish', () => {
-    Logger.log(`${req.method} ${req.originalUrl} -> ${res.statusCode} (${Date.now() - start}ms)`, 'HTTP');
+    const start = Date.now();
+    const jsonOriginal = res.json.bind(res);
+    res.json = (body) => {
+      if (res.statusCode >= 400) {
+        Logger.warn(`Body recibido: ${JSON.stringify(req.body)}`, 'HTTP');
+        Logger.warn(`Respuesta: ${JSON.stringify(body)}`, 'HTTP');
+      }
+      return jsonOriginal(body);
+    };
+    res.on('finish', () => {
+      Logger.log(
+        `${req.method} ${req.originalUrl} -> ${res.statusCode} (${Date.now() - start}ms)`,
+        'HTTP',
+      );
+    });
+    next();
   });
-  next();
-});
   app.useGlobalPipes(new ValidationPipe());
 
   // `diskStorage` (multer) no crea carpetas de destino por su cuenta:

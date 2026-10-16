@@ -26,12 +26,22 @@ export class EstadisticasDto {
   @ApiProperty({ example: 40, description: 'Total de reportes activos' })
   totalReportes!: number;
 
-  @ApiProperty({ type: [ConteoDto], description: 'Reportes por estado (incluye los que tienen 0)' })
+  @ApiProperty({
+    type: [ConteoDto],
+    description: 'Reportes por estado (incluye los que tienen 0)',
+  })
   porEstado!: ConteoDto[];
 
-  @ApiProperty({ type: [ConteoDto], description: 'Reportes por tipo de fraude, de mayor a menor' })
+  @ApiProperty({
+    type: [ConteoDto],
+    description: 'Reportes por tipo de fraude, de mayor a menor',
+  })
   porTipoFraude!: ConteoDto[];
 
-  @ApiProperty({ type: [ConteoMesDto], description: 'Reportes creados por mes, últimos 6 meses (solo meses con reportes)' })
+  @ApiProperty({
+    type: [ConteoMesDto],
+    description:
+      'Reportes creados por mes, últimos 6 meses (solo meses con reportes)',
+  })
   porMes!: ConteoMesDto[];
 }

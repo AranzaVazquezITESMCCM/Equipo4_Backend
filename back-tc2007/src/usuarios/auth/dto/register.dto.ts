@@ -7,7 +7,10 @@ import { IsEmail, IsString, Matches, MinLength } from 'class-validator';
  * super admin la apruebe).
  */
 export class RegisterDto {
-  @ApiProperty({ example: 'ara@tec.mx', description: 'Correo único; no puede estar registrado' })
+  @ApiProperty({
+    example: 'ara@tec.mx',
+    description: 'Correo único; no puede estar registrado',
+  })
   @IsEmail()
   email: string | undefined;
 
@@ -27,7 +30,11 @@ export class RegisterDto {
   // ... tus @Matches se quedan igual
   password: string | undefined;
 
-  @ApiProperty({ example: 'Ara Vázquez', minLength: 2, description: 'Nombre visible del usuario' })
+  @ApiProperty({
+    example: 'Ara Vázquez',
+    minLength: 2,
+    description: 'Nombre visible del usuario',
+  })
   @IsString()
   @MinLength(2)
   nombre: string | undefined;

@@ -1,4 +1,13 @@
-import { Body, Controller, Get, HttpCode, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -55,7 +64,9 @@ export class AuthController {
    * apruebe. Reutiliza {@link RegisterDto} del registro normal.
    */
   @ApiOperation({ summary: 'Solicitar registro como administrador' })
-  @ApiCreatedResponse({ description: 'Solicitud creada; pendiente de aprobación.' })
+  @ApiCreatedResponse({
+    description: 'Solicitud creada; pendiente de aprobación.',
+  })
   @Post('register-admin')
   registerAdmin(@Body() dto: RegisterDto) {
     return this.service.registerAdmin(dto);
@@ -89,7 +100,7 @@ export class AuthController {
     return this.service.approveAdmin(id);
   }
 
-    /** Rechaza una solicitud pendiente: el usuario pasa de Pendiente (4) a Usuario (1). */
+  /** Rechaza una solicitud pendiente: el usuario pasa de Pendiente (4) a Usuario (1). */
   @ApiOperation({ summary: 'Rechazar una solicitud de administrador' })
   @ApiBearerAuth('access-token')
   @ApiParam({ name: 'id', description: 'ID del usuario pendiente' })
@@ -114,13 +125,14 @@ export class AuthController {
     return this.service.revokeAdmin(id, user.sub);
   }
 
-
   /**
    * Inicio de sesión de usuario final. Responde `200` (en lugar del
    * `201` por defecto de un `POST`) porque no crea ningún recurso.
    */
   @ApiOperation({ summary: 'Iniciar sesión (usuario final)' })
-  @ApiOkResponse({ description: 'Credenciales válidas; devuelve los tokens de sesión.' })
+  @ApiOkResponse({
+    description: 'Credenciales válidas; devuelve los tokens de sesión.',
+  })
   @Post('login')
   @HttpCode(200)
   login(@Body() dto: LoginDto) {
@@ -133,7 +145,9 @@ export class AuthController {
    * además que la cuenta sea de administrador y esté aprobada.
    */
   @ApiOperation({ summary: 'Iniciar sesión (administrador)' })
-  @ApiOkResponse({ description: 'Credenciales válidas; devuelve los tokens de sesión.' })
+  @ApiOkResponse({
+    description: 'Credenciales válidas; devuelve los tokens de sesión.',
+  })
   @Post('admin-login')
   @HttpCode(200)
   adminLogin(@Body() dto: LoginDto) {
@@ -175,30 +189,31 @@ export class AuthController {
     return this.service.forgotPassword(dto.correo);
   }
 
-@ApiOperation({ summary: 'Verificar código de recuperación' })
-@ApiBody({
-  schema: {
-    type: 'object',
-    properties: {
-      correo: { type: 'string', format: 'email' },
-      codigo: { type: 'string', example: 'K7M2QX' },
+  @ApiOperation({ summary: 'Verificar código de recuperación' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        correo: { type: 'string', format: 'email' },
+        codigo: { type: 'string', example: 'K7M2QX' },
+      },
+      required: ['correo', 'codigo'],
     },
-    required: ['correo', 'codigo'],
-  },
-})
-@ApiOkResponse({ description: 'Código válido.' })
-@Post('verify-code')
-@HttpCode(200)
-verifyCode(@Body() dto: { correo: string; codigo: string }) {
-  return this.service.verifyCode(dto.correo, dto.codigo);
-}
-
-@Post('reset-password')
+  })
+  @ApiOkResponse({ description: 'Código válido.' })
+  @Post('verify-code')
   @HttpCode(200)
-  async resetPassword(@Body() body: { correo: string; codigo: string; nuevaContrasena: string }) {
+  verifyCode(@Body() dto: { correo: string; codigo: string }) {
+    return this.service.verifyCode(dto.correo, dto.codigo);
+  }
+
+  @Post('reset-password')
+  @HttpCode(200)
+  async resetPassword(
+    @Body() body: { correo: string; codigo: string; nuevaContrasena: string },
+  ) {
     // Si en tu constructor se llama 'authService', usa this.authService.resetPassword
     // Si en tu constructor se llama 'service', usa this.service.resetPassword
     return this.service.resetPassword(body);
   }
-
 }

@@ -33,7 +33,9 @@ export class AdminGuard implements CanActivate {
     // 3 = Super Admin
     // 4 = Pending
     if (req.user?.rolId !== 2 && req.user?.rolId !== 3) {
-      throw new ForbiddenException('Solo los administradores pueden realizar esta acción');
+      throw new ForbiddenException(
+        'Solo los administradores pueden realizar esta acción',
+      );
     }
 
     return true;
