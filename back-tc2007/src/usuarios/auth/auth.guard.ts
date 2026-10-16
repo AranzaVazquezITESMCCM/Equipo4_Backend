@@ -50,11 +50,11 @@ export class AuthGuard implements CanActivate {
 
     const payload = verify(header.slice('Bearer '.length));
 
-    if (!payload || payload.type !== 'access') {
+    if (payload?.type !== 'access') {
       throw new UnauthorizedException('Token inválido o expirado');
     }
 
-    req.user = payload;
+    req.user = payload!;
     return true;
   }
 }

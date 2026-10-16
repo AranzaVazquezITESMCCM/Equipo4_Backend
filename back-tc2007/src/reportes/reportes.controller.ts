@@ -11,10 +11,10 @@ import {
   UseInterceptors,
   BadRequestException,
   UploadedFiles,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { ParseUUIDPipe } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { extname } from 'node:path';
 import {

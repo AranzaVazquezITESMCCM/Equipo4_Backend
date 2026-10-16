@@ -33,7 +33,7 @@ export class RegisterDto {
   @Matches(/[a-z]/, {
     message: 'La contraseña debe contener al menos una minúscula',
   })
-  @Matches(/[0-9]/, {
+  @Matches(/\d/, {
     message: 'La contraseña debe contener al menos un número',
   })
   @Matches(/[^A-Za-z0-9]/, {

@@ -106,7 +106,7 @@ export class UsuariosController {
     return this.service.remove(id);
   }
 
-    /** Perfil del usuario autenticado. Va antes de `:id` para que "me" no se tome como id. */
+  /** Perfil del usuario autenticado. Va antes de `:id` para que "me" no se tome como id. */
   @ApiOperation({ summary: 'Ver mi perfil' })
   @ApiOkResponse({ type: UsuarioResponseDto })
   @Get('me')

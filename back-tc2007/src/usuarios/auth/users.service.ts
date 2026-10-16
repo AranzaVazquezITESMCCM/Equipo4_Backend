@@ -250,7 +250,7 @@ export class AuthService {
   async refresh(dto: RefreshDto): Promise<{ accessToken: string }> {
     const payload = verify(dto.refreshToken!);
 
-    if (!payload || payload.type !== 'refresh') {
+    if (payload?.type !== 'refresh') {
       throw new UnauthorizedException('Refresh token inválido');
     }
 
