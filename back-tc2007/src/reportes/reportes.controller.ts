@@ -241,3 +241,4 @@ export class ReportesController {
     await this.service.remove(id, user);
     return { message: 'Reporte eliminado correctamente' };
   }
+}
