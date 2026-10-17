@@ -30,12 +30,6 @@ interface RecoveryCodeRow extends RowDataPacket {
   expira_en: Date;
   usado: number | boolean;
 }
-export interface PendingAdminRow extends RowDataPacket {
-  id: string;
-  correo: string;
-  nombre: string;
-  created_at: Date;
-}
 
 /**
  * Acceso a datos para el flujo de autenticación. Opera sobre la
@@ -117,20 +111,6 @@ export class UsersRepository {
     );
 
     return (await this.findById(id))!;
-  }
-  /**
-   * Lista las solicitudes de administrador pendientes (`rol_id = 4`)
-   * activas. Devuelve filas crudas, no entidades, y solo con los
-   * campos que necesita el dashboard: nunca expone hash ni salt.
-   */
-  async findPendingAdmins(): Promise<PendingAdminRow[]> {
-    const [rows] = await this.pool.query<PendingAdminRow[]>(
-      `SELECT id, correo, nombre, created_at
-      FROM usuario
-      WHERE rol_id = 4
-      AND deleted_at IS NULL`,
-    );
-    return rows;
   }
 
   /**

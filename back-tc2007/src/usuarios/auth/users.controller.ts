@@ -1,7 +1,6 @@
 import {
   Body,
   Controller,
-  Get,
   HttpCode,
   Param,
   Patch,
@@ -27,6 +26,7 @@ import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { Throttle } from '@nestjs/throttler';
+import { RegisterResponseDto } from './dto/register-response.dto';
 
 /**
  * Autenticación y alta de cuentas (`/auth`).
@@ -52,10 +52,12 @@ export class AuthController {
    * Registro público de un usuario final. No requiere token.
    */
   @ApiOperation({ summary: 'Registrar un usuario final' })
-  @ApiCreatedResponse({ description: 'Usuario creado correctamente.' })
+  @ApiCreatedResponse({
+    description: 'Usuario creado correctamente.',
+    type: RegisterResponseDto,
+  })
   @Post('register')
   register(@Body() dto: RegisterDto) {
-    console.log('DTO RECIBIDO:', dto);
     return this.service.register(dto);
   }
 
@@ -72,19 +74,6 @@ export class AuthController {
   @Post('register-admin')
   registerAdmin(@Body() dto: RegisterDto) {
     return this.service.registerAdmin(dto);
-  }
-
-  /**
-   * Lista las solicitudes de administrador que aún no han sido
-   * aprobadas. Solo accesible para super administradores.
-   */
-  @ApiOperation({ summary: 'Listar administradores pendientes de aprobación' })
-  @ApiBearerAuth('access-token')
-  @ApiOkResponse({ description: 'Lista de administradores pendientes.' })
-  @Get('pending-admins')
-  @UseGuards(AuthGuard, SuperAdminGuard)
-  getPendingAdmins() {
-    return this.service.getPendingAdmins();
   }
 
   /**

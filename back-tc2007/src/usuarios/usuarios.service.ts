@@ -1,26 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { UsuariosRepository } from './usuarios.repository';
 import { UsuarioResponseDto } from './dto/usuario-response.dto';
-import { CreateUsuarioDto } from './dto/create-usuario.dto';
-import { UpdateUsuarioDto } from './dto/update-usuario.dto';
-import { generateSalt, hashPassword } from '../common/password.util';
 import { UpdateMyProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class UsuariosService {
   constructor(private readonly repository: UsuariosRepository) {}
-
-  async create(data: CreateUsuarioDto): Promise<UsuarioResponseDto> {
-    const salt = generateSalt();
-    const usuario = await this.repository.save({
-      correo: data.correo,
-      contrasena: hashPassword(data.contrasena, salt),
-      salt: salt,
-      nombre: data.nombre,
-      rolId: data.rolId,
-    });
-    return UsuarioResponseDto.fromEntity(usuario);
-  }
 
   async findAll(): Promise<UsuarioResponseDto[]> {
     const usuarios = await this.repository.findAll();
@@ -37,7 +22,7 @@ export class UsuariosService {
 
   async update(
     id: string,
-    changes: UpdateUsuarioDto,
+    changes: UpdateMyProfileDto,
   ): Promise<UsuarioResponseDto> {
     const existe = await this.repository.findById(id);
     if (!existe) {
@@ -56,12 +41,5 @@ export class UsuariosService {
     changes: UpdateMyProfileDto,
   ): Promise<UsuarioResponseDto> {
     return this.update(id, changes);
-  }
-
-  async remove(id: string): Promise<void> {
-    const borrado = await this.repository.softDelete(id);
-    if (!borrado) {
-      throw new NotFoundException(`Usuario ${id} no encontrado`);
-    }
   }
 }

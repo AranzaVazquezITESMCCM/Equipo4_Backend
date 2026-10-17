@@ -7,8 +7,8 @@ import type { RequestConUsuario } from '../../common/request-con-usuario';
  * token del usuario autenticado, evitando leer `req.user` a mano:
  *
  * ```ts
- * @Post()
- * create(@CurrentUser() user: JwtPayload, @Body() dto: CreateUsuarioDto) { ... }
+ * @Get('me')
+ * findMe(@CurrentUser() user: JwtPayload) { ... }
  * ```
  *
  * Solo funciona en rutas protegidas por {@link AuthGuard}, que es

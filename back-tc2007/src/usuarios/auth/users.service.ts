@@ -186,11 +186,6 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  /** Devuelve las solicitudes de administrador aún no aprobadas. */
-  async getPendingAdmins() {
-    return this.users.findPendingAdmins();
-  }
-
   /**
    * Aprueba una solicitud de administrador pendiente.
    *

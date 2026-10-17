@@ -1,6 +1,5 @@
 import { ConflictException, Inject, Injectable } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
-import type { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
+import type { Pool, RowDataPacket } from 'mysql2/promise';
 import { mysqlErrno } from '../common/mysql-error';
 import { DB_POOL } from '../database/database.module';
 import { Usuario } from './entities/usuario.entity';
@@ -42,40 +41,6 @@ export class UsuariosRepository {
       [id],
     );
     return rows[0] && toEntity(rows[0]);
-  }
-
-  /**
-   * Inserta un usuario nuevo y devuelve la fila insertada. El `id`
-   * (UUID v4) se genera aquí en la aplicación con `crypto.randomUUID()`
-   * y se manda explícito en el INSERT — la tabla ya no tiene
-   * AUTO_INCREMENT, así que no hay `insertId` del que depender.
-   * @throws ConflictException si `rolId` no referencia un rol existente
-   * (violación de la FK `fk_usuario_rol`, errno 1452).
-   */
-  async save(
-    usuario: Omit<Usuario, 'id' | 'createdAt' | 'deletedAt'>,
-  ): Promise<Usuario> {
-    const id = randomUUID();
-    try {
-      await this.pool.query<ResultSetHeader>(
-        `INSERT INTO usuario (id, correo, contrasena, salt, nombre, rol_id)
-        VALUES (?, ?, ?, ?, ?, ?)`,
-        [
-          id,
-          usuario.correo,
-          usuario.contrasena,
-          usuario.salt,
-          usuario.nombre,
-          usuario.rolId,
-        ],
-      );
-      return (await this.findById(id))!;
-    } catch (err: unknown) {
-      if (mysqlErrno(err) === 1452) {
-        throw new ConflictException('El rol especificado no existe');
-      }
-      throw err;
-    }
   }
 
   /**
@@ -126,19 +91,6 @@ export class UsuariosRepository {
       throw err;
     }
     return this.findById(id);
-  }
-
-  /**
-   * Marca `deleted_at = NOW()`. Devuelve `false` si el usuario no
-   * existía o ya estaba borrado (no lanza excepción; el service
-   * decide si eso es un 404).
-   */
-  async softDelete(id: string): Promise<boolean> {
-    const [result] = await this.pool.query<ResultSetHeader>(
-      `UPDATE usuario SET deleted_at = NOW() WHERE id = ? AND deleted_at IS NULL`,
-      [id],
-    );
-    return result.affectedRows > 0;
   }
 }
 

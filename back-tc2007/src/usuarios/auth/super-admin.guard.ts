@@ -19,8 +19,7 @@ import type { RequestConUsuario } from '../../common/request-con-usuario';
  * que un cambio de rol no se refleja hasta que el usuario obtiene un
  * token nuevo (ver {@link AuthService.refresh}).
  *
- * Se usa en `GET /auth/pending-admins` y
- * `PATCH /auth/admins/:id/approve`.
+ * Se usa en `PATCH /auth/admins/:id/approve`, `reject` y `revoke`.
  */
 @Injectable()
 export class SuperAdminGuard implements CanActivate {
